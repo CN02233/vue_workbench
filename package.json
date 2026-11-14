@@ -1,0 +1,1 @@
+{"name":"order-ai-workbench","version":"0.1.0","private":true,"scripts":{"serve":"vue-cli-service serve --port 8080"},"dependencies":{"axios":"^1.7.9","core-js":"^3.40.0","vue":"^2.7.16"},"devDependencies":{"@vue/cli-service":"^5.0.8","vue-template-compiler":"^2.7.16"}}
