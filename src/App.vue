@@ -1014,7 +1014,10 @@ const managementMessages = {
     balanceAfter: '变动后余额',
     reference: '关联单号',
     noLinked: '暂无关联记录',
-    orderCount: '关联订单',
+    order_count: '关联订单',
+    shipped_at: '发货时间',
+    delivered_at: '签收时间',
+    refund_type: '退款类型',
     productLinked: '已关联订单，不能删除',
     SHIPPED: '已发货',
     PROCESSING: '处理中',
@@ -1139,7 +1142,10 @@ const managementMessages = {
     balanceAfter: 'Balance after',
     reference: 'Reference',
     noLinked: 'No linked records',
-    orderCount: 'Orders',
+    order_count: 'Orders',
+    shipped_at: 'Shipped at',
+    delivered_at: 'Delivered at',
+    refund_type: 'Refund type',
     productLinked: 'Linked to orders, cannot be deleted',
     SHIPPED: 'Shipped',
     PROCESSING: 'Processing',
@@ -1265,7 +1271,10 @@ const managementMessages = {
     balanceAfter: 'Saldo posterior',
     reference: 'Referencia',
     noLinked: 'Sin registros relacionados',
-    orderCount: 'Pedidos',
+    order_count: 'Pedidos',
+    shipped_at: 'Enviado el',
+    delivered_at: 'Entregado el',
+    refund_type: 'Tipo de reembolso',
     productLinked: 'Vinculado a pedidos, no se puede eliminar',
     SHIPPED: 'Enviado',
     PROCESSING: 'En preparación',
@@ -1901,10 +1910,12 @@ export default {
           if (v !== '' && v !== null) params[k] = v
         })
         const result = (await api.get(path, { params })).data
+        // Paging metadata sits under `page`; older builds returned it flat on the payload.
+        const page = result.page || result
         this.rows = result.content || []
-        this.pageNumber = result.number || 0
-        this.totalPages = result.totalPages || 0
-        this.totalElements = result.totalElements || 0
+        this.pageNumber = page.number || 0
+        this.totalPages = page.totalPages || 0
+        this.totalElements = page.totalElements || 0
       })
     },
     cancelOrder(row) {
