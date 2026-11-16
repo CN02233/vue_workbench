@@ -1,11 +1,17 @@
 const { test, expect } = require('@playwright/test')
 
 const RUN = `E2E-${Date.now().toString(36).toUpperCase()}`
-const SKU = `${RUN}-SKU`
-const FREE_SKU = `${RUN}-FREE`
+
+// Products are permanent fixtures, not per-run data: an order writes a stock movement, the ledger is
+// append-only, and a product carrying movements can never be deleted. Reusing two fixed SKUs keeps the
+// database from growing by two rows per run.
+const SKU = 'E2E-FIXTURE-SKU'
+const FREE_SKU = 'E2E-FIXTURE-FREE'
 const PROCESSING = `${RUN}-ORD1`
 const SHIPPED = `${RUN}-ORD2`
 const CANCELLED = `${RUN}-ORD3`
+
+let customerId
 
 async function call(request, method, path, data) {
   const response = await request[method](`/api${path}`, data === undefined ? {} : { data })
@@ -20,6 +26,23 @@ async function call(request, method, path, data) {
     throw new Error(`${method.toUpperCase()} ${path} -> ${response.status()} ${text}`)
   }
   return body.data === undefined ? body : body.data
+}
+
+/** Creates the fixture product, or tops an existing one back up to its opening stock. */
+async function ensureProduct(request, sku, name, stock, price) {
+  const found = await request.get(`/api/products/${sku}`)
+  if (!found.ok()) {
+    await call(request, 'post', '/products', { sku, name, stock, price })
+    return
+  }
+  const existing = (await found.json()).data
+  const delta = stock - existing.stock
+  if (delta !== 0) {
+    await call(request, 'post', `/products/${sku}/stock-adjustments`, {
+      delta,
+      note: 'end-to-end fixture reset'
+    })
+  }
 }
 
 async function openCreate(page, menuLabel) {
@@ -44,22 +67,13 @@ test.beforeAll(async ({ request }) => {
     '业务 API 不可用，请先启动 springboot-api（默认 http://localhost:8081）'
   ).toBeTruthy()
 
-  await call(request, 'post', '/products', {
-    sku: SKU,
-    name: '端到端测试商品',
-    stock: 20,
-    price: '9.90'
-  })
-  await call(request, 'post', '/products', {
-    sku: FREE_SKU,
-    name: '无关联商品',
-    stock: 5,
-    price: '1.00'
-  })
+  await ensureProduct(request, SKU, 'E2E fixture — ordered product', 20, '9.90')
+  await ensureProduct(request, FREE_SKU, 'E2E fixture — unused product', 5, '1.00')
   const customer = await call(request, 'post', '/customers', {
     name: '端到端客户',
     email: `${RUN.toLowerCase()}@example.com`
   })
+  customerId = customer.id
 
   // Order 1 stays in PROCESSING: the only state a new parcel may point at.
   await call(request, 'post', '/orders', {
@@ -108,9 +122,9 @@ test.afterAll(async ({ request }) => {
   for (const number of [PROCESSING, SHIPPED, CANCELLED]) {
     await quiet(() => call(request, 'delete', `/orders/${number}`))
   }
-  for (const sku of [SKU, FREE_SKU]) {
-    await quiet(() => call(request, 'delete', `/products/${sku}`))
-  }
+  // The two fixture products stay: the stock movements they collected are append-only, so the API
+  // refuses to delete them by design. They are reused and reset at the start of the next run.
+  await quiet(() => call(request, 'delete', `/customers/${customerId}`))
 })
 
 test('物流新增只允许选择处理中的订单', async ({ page }) => {
