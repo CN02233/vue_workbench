@@ -1,1 +1,10 @@
-module.exports = { devServer: { proxy: { '/api': { target: 'http://localhost:8081', changeOrigin: true } } } }
+module.exports = {
+  devServer: {
+    proxy: {
+      '/api': {
+        target: process.env.BUSINESS_API_URL || 'http://localhost:8081',
+        changeOrigin: true
+      }
+    }
+  }
+}
