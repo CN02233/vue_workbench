@@ -63,8 +63,34 @@
       @delete="removeRow"
     />
 
+    <!-- EN: Orders has its own view; order detail/edit modal and all business logic stay in App.vue. -->
+    <!-- 中文：订单页使用独立视图；订单详情/编辑弹窗与全部业务逻辑仍留在 App.vue。 -->
+    <OrdersView
+      v-if="page === 'orders'"
+      :locale="locale"
+      :rows="filteredRows"
+      :columns="columns"
+      :filters="filters"
+      :filter-fields="filterFields"
+      :page-number="pageNumber"
+      :page-size="pageSize"
+      :total-pages="totalPages"
+      :total-elements="totalElements"
+      @update-filter="setFilterValue"
+      @search="searchPage"
+      @reset="resetFilters"
+      @page="loadPage"
+      @page-size="setPageSize"
+      @create="beginCreate"
+      @edit="beginEdit"
+      @cancel="cancelOrder"
+      @delete="removeRow"
+    />
+
     <section
-      v-if="page !== 'dashboard' && page !== 'inquiries' && page !== 'inventory'"
+      v-if="
+        page !== 'dashboard' && page !== 'inquiries' && page !== 'inventory' && page !== 'orders'
+      "
       class="card management"
     >
       <div class="management-heading">
@@ -698,6 +724,7 @@ import GlobalFeedback from './components/common/GlobalFeedback.vue'
 import DashboardView from './views/DashboardView.vue'
 import InquiriesView from './views/InquiriesView.vue'
 import InventoryView from './views/InventoryView.vue'
+import OrdersView from './views/OrdersView.vue'
 import {
   ORDER_STATUSES,
   INQUIRY_CATEGORIES,
@@ -714,7 +741,8 @@ export default {
     GlobalFeedback,
     DashboardView,
     InquiriesView,
-    InventoryView
+    InventoryView,
+    OrdersView
   },
   data: () => ({
     locale: localStorage.getItem('order-ai-locale') || 'zh',
