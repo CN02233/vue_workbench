@@ -161,5 +161,9 @@ export default {
   refund_type: 'Refund type',
   productLinked: 'Linked to orders, cannot be deleted',
   REJECTED: 'Rejected',
-  invalidReceiveQuantity: 'Received quantity must be an integer between 0 and the remaining amount'
+  invalidReceiveQuantity: 'Received quantity must be an integer between 0 and the remaining amount',
+  requestedQuantity: 'Requested quantity',
+  receivedQuantity: 'Already received',
+  remainingQuantity: 'Remaining to receive',
+  receiveNow: 'Quantity to receive now'
 }

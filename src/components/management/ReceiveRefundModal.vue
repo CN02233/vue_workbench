@@ -11,9 +11,19 @@
       </div>
       <div class="modal-body">
         <div v-for="line in lines" :key="line.order_item_id" class="item-line">
-          <div class="line-name">{{ line.name }} ({{ line.sku }})</div>
+          <div class="line-info">
+            <div class="line-name">{{ line.name }} ({{ line.sku }})</div>
+            <!-- EN: Show the requested total, the quantity already received and the remainder. -->
+            <!-- 中文：展示申请退货总量、此前已验收数量与剩余可验收数量。 -->
+            <div class="hint">
+              {{ t('requestedQuantity') }}: {{ line.quantity }} · {{ t('receivedQuantity') }}:
+              {{ line.received_quantity }} · {{ t('remainingQuantity') }}: {{ line.max }}
+            </div>
+          </div>
+          <!-- EN: The editable value defaults to the full remaining amount and keeps max = remaining. -->
+          <!-- 中文：可编辑值默认为全部剩余量，max 仍为剩余可验收数量。 -->
           <label class="qty">
-            {{ t('quantity') }}
+            {{ t('receiveNow') }}
             <input
               v-model.number="line.accepted_quantity"
               type="number"

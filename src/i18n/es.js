@@ -162,5 +162,9 @@ export default {
   refund_type: 'Tipo de reembolso',
   productLinked: 'Vinculado a pedidos, no se puede eliminar',
   REJECTED: 'Rechazado',
-  invalidReceiveQuantity: 'La cantidad recibida debe ser un entero entre 0 y el importe restante'
+  invalidReceiveQuantity: 'La cantidad recibida debe ser un entero entre 0 y el importe restante',
+  requestedQuantity: 'Cantidad solicitada',
+  receivedQuantity: 'Ya recibida',
+  remainingQuantity: 'Pendiente de recibir',
+  receiveNow: 'Cantidad a recibir ahora'
 }

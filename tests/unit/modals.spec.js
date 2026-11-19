@@ -495,6 +495,52 @@ describe('ReceiveRefundModal', () => {
     expect(wrapper.emitted().receive).toHaveLength(1)
   })
 
+  it('shows requested, already received and remaining quantities for each item', () => {
+    // EN: A 5-unit request with 2 already received must display 5 / 2 / 3 and cap input at 3.
+    // 中文：申请 5 件、已验收 2 件时，界面须显示 5 / 2 / 3，且输入上限为 3。
+    const lines = [
+      {
+        order_item_id: 11,
+        sku: 'MUG-001',
+        name: 'Mug',
+        quantity: 5,
+        received_quantity: 2,
+        max: 3,
+        accepted_quantity: 3
+      }
+    ]
+    const wrapper = shallowMount(ReceiveRefundModal, { propsData: createProps({ lines }) })
+
+    const info = wrapper.find('.hint').text().replace(/\s+/g, ' ')
+    expect(info).toContain('申请退货数量: 5')
+    expect(info).toContain('已验收数量: 2')
+    expect(info).toContain('剩余可验收数量: 3')
+    expect(wrapper.find('input[type="number"]').attributes('max')).toBe('3')
+  })
+
+  it('still lets the user change the quantity to receive for this run', async () => {
+    // EN: Editing the input only changes this run's accepted_quantity, not the displayed totals.
+    // 中文：修改输入框只改变本次验收数量，不影响展示的申请量与已验收量。
+    const lines = [
+      {
+        order_item_id: 11,
+        sku: 'MUG-001',
+        name: 'Mug',
+        quantity: 5,
+        received_quantity: 2,
+        max: 3,
+        accepted_quantity: 3
+      }
+    ]
+    const wrapper = shallowMount(ReceiveRefundModal, { propsData: createProps({ lines }) })
+
+    await wrapper.find('input[type="number"]').setValue('1')
+
+    expect(lines[0].accepted_quantity).toBe(1)
+    expect(lines[0].quantity).toBe(5)
+    expect(lines[0].received_quantity).toBe(2)
+  })
+
   it('emits close from the backdrop, the close icon and the cancel button', async () => {
     const wrapper = shallowMount(ReceiveRefundModal, { propsData: createProps() })
 
@@ -540,6 +586,22 @@ describe('App.vue receive validation', () => {
         return Promise.resolve({
           data: { content: [], page: { number: 0, totalPages: 0, totalElements: 0, size: 10 } }
         })
+      // EN: getRefund(2) returns 5 requested with 2 already received -> 3 remaining.
+      // 中文：getRefund(2) 返回申请 5 件、已验收 2 件 -> 剩余 3 件。
+      if (url === '/refund-requests/2')
+        return Promise.resolve({
+          data: {
+            return_items: [
+              {
+                order_item_id: 11,
+                sku: 'MUG-001',
+                name: 'Mug',
+                quantity: 5,
+                accepted_quantity: 2
+              }
+            ]
+          }
+        })
       if (url === '/customers' || url === '/products' || url === '/orders')
         return Promise.resolve({ data: { content: [] } })
       return Promise.resolve({ data: {} })
@@ -550,6 +612,59 @@ describe('App.vue receive validation', () => {
 
   const receiveCalls = () =>
     api.post.mock.calls.filter(call => call[0] === '/refund-requests/2/receive')
+
+  it('maps return_items to requested / received / remaining on openReceive', async () => {
+    // EN: openReceive keeps the server's accepted_quantity as received_quantity.
+    // 中文：openReceive 保留服务端的 accepted_quantity 为 received_quantity。
+    const wrapper = await mountApp()
+
+    wrapper.vm.openReceive({ id: 2 })
+    await flush()
+
+    expect(wrapper.vm.receiveLines[0]).toEqual({
+      order_item_id: 11,
+      sku: 'MUG-001',
+      name: 'Mug',
+      quantity: 5,
+      accepted_quantity: 3,
+      received_quantity: 2,
+      max: 3
+    })
+    expect(wrapper.vm.showReceive).toBe(true)
+  })
+
+  it('blocks a quantity above the remaining amount after the display change', async () => {
+    // EN: 5 requested - 2 received = 3 remaining; entering 4 must not call the API.
+    // 中文：申请 5 - 已验收 2 = 剩余 3；输入 4 时不得调用 API。
+    const wrapper = await mountApp()
+    wrapper.vm.openReceive({ id: 2 })
+    await flush()
+    const modal = wrapper.findComponent(ReceiveRefundModal)
+
+    await modal.find('input[type="number"]').setValue('4')
+    await wrapper.vm.confirmReceive()
+    await flush()
+
+    expect(receiveCalls()).toHaveLength(0)
+    expect(wrapper.vm.error).toBeTruthy()
+  })
+
+  it('keeps the receive API payload unchanged with the new display fields', async () => {
+    // EN: The extra display fields must never leak into the receive request body.
+    // 中文：新增的展示字段不得进入验收请求体。
+    const wrapper = await mountApp()
+    wrapper.vm.openReceive({ id: 2 })
+    await flush()
+    const modal = wrapper.findComponent(ReceiveRefundModal)
+
+    await modal.find('input[type="number"]').setValue('1')
+    await wrapper.vm.confirmReceive()
+    await flush()
+
+    expect(receiveCalls()).toEqual([
+      ['/refund-requests/2/receive', { items: [{ order_item_id: 11, accepted_quantity: 1 }] }]
+    ])
+  })
 
   it('submits the unchanged payload for a valid integer quantity', async () => {
     const wrapper = await mountApp()

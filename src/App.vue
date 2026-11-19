@@ -929,8 +929,15 @@ export default {
       refunds
         .getRefund(row.id)
         .then(r => {
+          // EN: Preserve the original accepted_quantity as received_quantity (already received).
+          //     quantity stays the requested total; max and accepted_quantity stay the remaining
+          //     amount (the editable default for this receive run). Payload is unchanged.
+          // 中文：保留原始 accepted_quantity 为 received_quantity（此前已验收数量）。
+          //     quantity 仍为申请退货总量；max 与 accepted_quantity 仍为剩余待验收数量（本次默认值）。
+          //     验收请求 payload 不变。
           this.receiveLines = (r.data.return_items || []).map(i => ({
             ...i,
+            received_quantity: i.accepted_quantity,
             max: i.quantity - i.accepted_quantity,
             accepted_quantity: i.quantity - i.accepted_quantity
           }))

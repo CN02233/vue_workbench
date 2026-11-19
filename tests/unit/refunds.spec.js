@@ -476,8 +476,18 @@ describe('App.vue handles RefundsView events', () => {
     expect(api.get).toHaveBeenCalledWith('/refund-requests/2')
     expect(wrapper.vm.receiveRefundId).toBe(2)
     expect(wrapper.vm.showReceive).toBe(true)
+    // EN: received_quantity is the original accepted_quantity (1); the rest stay the remaining (2).
+    // 中文：received_quantity 为原始 accepted_quantity（1），其余字段仍为剩余量（2）。
     expect(wrapper.vm.receiveLines).toEqual([
-      { order_item_id: 11, sku: 'MUG-001', name: 'Mug', quantity: 3, max: 2, accepted_quantity: 2 }
+      {
+        order_item_id: 11,
+        sku: 'MUG-001',
+        name: 'Mug',
+        quantity: 3,
+        max: 2,
+        accepted_quantity: 2,
+        received_quantity: 1
+      }
     ])
     const modal = wrapper.find('.modal-backdrop')
     const input = modal.find('input[type="number"]')
