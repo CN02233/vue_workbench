@@ -160,5 +160,6 @@ export default {
   delivered_at: 'Delivered at',
   refund_type: 'Refund type',
   productLinked: 'Linked to orders, cannot be deleted',
-  REJECTED: 'Rejected'
+  REJECTED: 'Rejected',
+  invalidReceiveQuantity: 'Received quantity must be an integer between 0 and the remaining amount'
 }

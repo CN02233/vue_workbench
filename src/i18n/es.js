@@ -161,5 +161,6 @@ export default {
   delivered_at: 'Entregado el',
   refund_type: 'Tipo de reembolso',
   productLinked: 'Vinculado a pedidos, no se puede eliminar',
-  REJECTED: 'Rechazado'
+  REJECTED: 'Rechazado',
+  invalidReceiveQuantity: 'La cantidad recibida debe ser un entero entre 0 y el importe restante'
 }

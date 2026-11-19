@@ -160,5 +160,6 @@ export default {
   delivered_at: '签收时间',
   refund_type: '退款类型',
   productLinked: '已关联订单，不能删除',
-  REJECTED: '已拒绝'
+  REJECTED: '已拒绝',
+  invalidReceiveQuantity: '验收数量必须是 0 到剩余可验收数量之间的整数'
 }

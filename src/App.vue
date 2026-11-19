@@ -138,622 +138,90 @@
       @delete="removeRow"
     />
 
-    <section
-      v-if="
-        page !== 'dashboard' &&
-        page !== 'inquiries' &&
-        page !== 'inventory' &&
-        page !== 'orders' &&
-        page !== 'shipments' &&
-        page !== 'refunds'
-      "
-      class="card management"
-    >
-      <div class="management-heading">
-        <h2>{{ t(page) }}</h2>
-        <button @click="beginCreate">{{ t('add_new') }}</button>
-      </div>
-      <div class="filters">
-        <label v-for="field in filterFields" :key="field.key">
-          {{ t(field.key) }}
-          <select v-if="field.options" v-model="filters[field.key]">
-            <option value="">{{ t('all') }}</option>
-            <option v-for="option in field.options" :key="option" :value="option">
-              {{ t(option) }}
-            </option>
-          </select>
-          <input
-            v-else
-            v-model="filters[field.key]"
-            :type="field.type || 'text'"
-            :min="field.min"
-            :step="field.step"
-          />
-        </label>
-        <button @click="searchPage">{{ t('search') }}</button>
-        <button class="secondary" @click="resetFilters">{{ t('reset') }}</button>
-      </div>
-
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th v-for="column in columns" :key="column">{{ t(column) }}</th>
-              <th>{{ t('actions') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in filteredRows" :key="row.id || row.order_number || row.sku">
-              <td v-for="column in columns" :key="column">{{ cell(row, column) }}</td>
-              <td class="action-cell">
-                <button
-                  v-if="page !== 'refunds' || row.status === 'PENDING_MANUAL_APPROVAL'"
-                  class="secondary"
-                  @click="beginEdit(row)"
-                >
-                  {{ t('edit') }}
-                </button>
-                <button
-                  v-if="page === 'refunds' && row.status === 'PENDING_MANUAL_APPROVAL'"
-                  class="warm"
-                  @click="approveRefund(row.id)"
-                >
-                  {{ t('approve') }}
-                </button>
-                <button
-                  v-if="page === 'refunds' && row.status === 'PENDING_MANUAL_APPROVAL'"
-                  class="secondary"
-                  @click="rejectRefund(row.id)"
-                >
-                  {{ t('reject') }}
-                </button>
-                <button
-                  v-if="
-                    page === 'refunds' &&
-                    row.status === 'APPROVED_MANUALLY' &&
-                    row.refund_type === 'RETURN_AND_REFUND' &&
-                    !row.inventory_received
-                  "
-                  class="warm"
-                  @click="openReceive(row)"
-                >
-                  {{ t('receive') }}
-                </button>
-                <button
-                  v-if="page === 'orders' && row.status === 'PROCESSING'"
-                  class="secondary"
-                  @click="cancelOrder(row)"
-                >
-                  {{ t('cancelOrder') }}
-                </button>
-                <button
-                  class="danger"
-                  v-if="
-                    page !== 'shipments' ||
-                    !['DELIVERED', 'IN_TRANSIT', 'PICKED_UP'].includes(row.status)
-                  "
-                  :disabled="page === 'inventory' && row.order_count > 0"
-                  :title="page === 'inventory' && row.order_count > 0 ? t('productLinked') : ''"
-                  @click="removeRow(row)"
-                >
-                  {{ t('delete') }}
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!filteredRows.length">
-              <td :colspan="columns.length + 1" class="empty">{{ t('empty') }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="pagination">
-        <label>
-          {{ t('page_size') }}
-          <select v-model.number="pageSize" @change="changePageSize">
-            <option :value="10">10</option>
-            <option :value="25">25</option>
-            <option :value="50">50</option>
-          </select>
-        </label>
-        <button class="secondary" :disabled="pageNumber === 0" @click="loadPage(pageNumber - 1)">
-          {{ t('previous') }}
-        </button>
-        <span>{{ pageNumber + 1 }} / {{ totalPages || 1 }} · {{ totalElements }}</span>
-        <button
-          class="secondary"
-          :disabled="pageNumber + 1 >= totalPages"
-          @click="loadPage(pageNumber + 1)"
-        >
-          {{ t('next') }}
-        </button>
-      </div>
-    </section>
-
-    <!-- 新增 / 编辑 弹窗 -->
-    <div v-if="showForm" class="modal-backdrop" @click.self="closeForm">
-      <div class="modal" role="dialog" aria-modal="true">
-        <div class="modal-head">
-          <h3>{{ t(editing ? 'edit' : 'add_new') }} · {{ t(page) }}</h3>
-          <button class="icon" :aria-label="t('close')" @click="closeForm">×</button>
-        </div>
-
-        <div class="modal-body">
-          <!-- 订单：客户与商品都从关联数据中选择 -->
-          <template v-if="page === 'orders'">
-            <div class="form-grid">
-              <label>
-                {{ t('order_number') }}
-                <input v-model.trim="editor.order_number" required :disabled="editing" />
-              </label>
-              <label>
-                {{ t('customer') }}
-                <select v-model.number="editor.customer_id" :disabled="editing">
-                  <option value="">{{ t('selectCustomer') }}</option>
-                  <option v-for="c in customers" :key="c.id" :value="c.id">
-                    {{ c.name }} · {{ c.email }}
-                  </option>
-                </select>
-              </label>
-            </div>
-
-            <template v-if="!editing">
-              <div class="section-title">{{ t('items') }}</div>
-              <div v-for="(line, index) in editor.items" :key="index" class="item-line">
-                <label>
-                  {{ t('product') }}
-                  <select v-model="line.sku">
-                    <option value="">{{ t('selectProduct') }}</option>
-                    <option v-for="p in productOptions" :key="p.sku" :value="p.sku">
-                      {{ p.sku }} · {{ p.name }} · ¥{{ p.price }} · {{ t('stock') }} {{ p.stock }}
-                    </option>
-                  </select>
-                </label>
-                <label class="qty">
-                  {{ t('quantity') }}
-                  <input v-model.number="line.quantity" type="number" min="1" step="1" />
-                </label>
-                <span class="hint">
-                  {{
-                    selectedProduct(line.sku)
-                      ? `${t('availableStock')} ${selectedProduct(line.sku).stock}`
-                      : ''
-                  }}
-                </span>
-                <button class="danger remove-line" @click="removeItemLine(index)">
-                  {{ t('remove') }}
-                </button>
-              </div>
-              <button class="secondary" @click="addItemLine">+ {{ t('addItem') }}</button>
-              <label>
-                {{ t('tracking_number') }}
-                <input v-model.trim="editor.tracking_number" />
-              </label>
-            </template>
-
-            <template v-else>
-              <div class="section-title">{{ t('items') }}</div>
-              <table class="mini-table">
-                <thead>
-                  <tr>
-                    <th>{{ t('product') }}</th>
-                    <th>{{ t('quantity') }}</th>
-                    <th>{{ t('shippedQuantity') }}</th>
-                    <th>{{ t('unitPrice') }}</th>
-                    <th>{{ t('lineTotal') }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="i in orderDetail?.items || []" :key="i.id">
-                    <td>{{ i.name }} ({{ i.sku }})</td>
-                    <td>{{ i.quantity }}</td>
-                    <td>{{ i.shipped_quantity || 0 }}</td>
-                    <td>¥{{ i.unit_price }}</td>
-                    <td>¥{{ i.line_total }}</td>
-                  </tr>
-                </tbody>
-              </table>
-              <div class="form-grid">
-                <label>
-                  {{ t('status') }}
-                  <select v-model="editor.status">
-                    <option v-for="s in orderStatuses" :key="s" :value="s">{{ t(s) }}</option>
-                  </select>
-                </label>
-                <label>
-                  {{ t('tracking_number') }}
-                  <input v-model.trim="editor.tracking_number" />
-                </label>
-              </div>
-              <div class="readonly">
-                {{ t('refundable') }}: ¥{{ orderDetail?.refundable_amount ?? '—' }} ·
-                {{ t('pendingRefund') }}: ¥{{ orderDetail?.pending_refund_amount ?? '—' }}
-              </div>
-              <div v-if="orderDetail?.shipments?.length" class="section-title">
-                {{ t('orderShipments') }}
-              </div>
-              <table v-if="orderDetail?.shipments?.length" class="mini-table">
-                <thead>
-                  <tr>
-                    <th>{{ t('carrier') }}</th>
-                    <th>{{ t('tracking_number') }}</th>
-                    <th>{{ t('shipmentStatus') }}</th>
-                    <th>{{ t('deliveredAt') }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="s in orderDetail.shipments" :key="s.id">
-                    <td>{{ s.carrier }}</td>
-                    <td>{{ s.tracking_number }}</td>
-                    <td>{{ t(s.status) }}</td>
-                    <td>{{ formatTime(s.delivered_at) }}</td>
-                  </tr>
-                </tbody>
-              </table>
-              <div v-if="orderDetail?.refunds?.length" class="section-title">
-                {{ t('refunds') }}
-              </div>
-              <div v-for="r in orderDetail?.refunds || []" :key="r.id" class="readonly">
-                #{{ r.id }} · {{ t(r.status) }} · ¥{{ r.amount }} · {{ r.reason }}
-              </div>
-            </template>
-          </template>
-
-          <!-- 物流：一个订单可以拆成多个包裹，发货数量受订单行剩余量约束 -->
-          <template v-else-if="page === 'shipments'">
-            <label>
-              {{ t('order_number') }}
-              <select
-                v-model="editor.order_number"
-                :disabled="editing"
-                @change="onShipmentOrderChange"
-              >
-                <option value="">{{ t('selectOrder') }}</option>
-                <option v-for="o in shippableOrders" :key="o.order_number" :value="o.order_number">
-                  {{ o.order_number }} · {{ t(o.status) }}
-                </option>
-              </select>
-            </label>
-            <div v-if="orderDetail" class="readonly">
-              {{ t('customer') }} {{ orderDetail.customer_email || '—' }} · {{ t('status') }}
-              {{ t(orderDetail.status) }} · {{ t('shippedQuantity') }} {{ shippedTotal }} /
-              {{ orderedTotal }}
-            </div>
-
-            <div class="form-grid">
-              <label>
-                {{ t('carrier') }}
-                <input v-model.trim="editor.carrier" list="carrier-options" required />
-                <datalist id="carrier-options">
-                  <option v-for="c in carriers" :key="c" :value="c"></option>
-                </datalist>
-              </label>
-              <label>
-                {{ t('tracking_number') }}
-                <input v-model.trim="editor.tracking_number" required />
-              </label>
-            </div>
-            <div class="form-grid">
-              <label>
-                {{ t('estimatedDelivery') }}
-                <input v-model="editor.estimated_delivery" type="date" />
-              </label>
-              <label>
-                {{ t('receiverName') }}
-                <input v-model.trim="editor.receiver_name" />
-              </label>
-            </div>
-
-            <template v-if="!editing">
-              <div class="section-title">{{ t('items') }}</div>
-              <div v-if="!orderDetail" class="hint">{{ t('selectOrderFirst') }}</div>
-              <div v-else-if="!shipmentLines.length" class="hint">{{ t('nothingToShip') }}</div>
-              <div v-for="line in shipmentLines" :key="line.id" class="item-line">
-                <div class="line-name">{{ line.name }} ({{ line.sku }})</div>
-                <label class="qty">
-                  {{ t('quantity') }}
-                  <input
-                    v-model.number="line.quantity"
-                    type="number"
-                    min="0"
-                    :max="line.remaining"
-                    step="1"
-                  />
-                </label>
-                <span class="hint">/ {{ line.remaining }}</span>
-              </div>
-              <div v-if="shipmentLines.length" class="hint">{{ t('shipAllHint') }}</div>
-            </template>
-
-            <template v-else>
-              <div class="form-grid">
-                <label>
-                  {{ t('shipmentStatus') }}
-                  <select v-model="editor.status">
-                    <option v-for="s in shipmentStatusOptions" :key="s" :value="s">
-                      {{ t(s) }}
-                    </option>
-                  </select>
-                </label>
-                <label>
-                  {{ t('location') }}
-                  <input v-model.trim="editor.location" :placeholder="t('locationPlaceholder')" />
-                </label>
-              </div>
-              <label>
-                {{ t('description') }}
-                <input v-model.trim="editor.description" :placeholder="t('eventPlaceholder')" />
-              </label>
-
-              <div class="section-title">{{ t('shipmentItems') }}</div>
-              <table class="mini-table">
-                <thead>
-                  <tr>
-                    <th>{{ t('product') }}</th>
-                    <th>{{ t('quantity') }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="i in shipmentDetail?.items || []" :key="i.id">
-                    <td>{{ i.name }} ({{ i.sku }})</td>
-                    <td>{{ i.quantity }}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <div class="section-title">{{ t('trackingEvents') }}</div>
-              <table class="mini-table">
-                <thead>
-                  <tr>
-                    <th>{{ t('occurredAt') }}</th>
-                    <th>{{ t('status') }}</th>
-                    <th>{{ t('location') }}</th>
-                    <th>{{ t('description') }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="e in shipmentDetail?.events || []" :key="e.id">
-                    <td>{{ formatTime(e.occurred_at) }}</td>
-                    <td>{{ t(e.status) }}</td>
-                    <td>{{ e.location || '—' }}</td>
-                    <td>{{ e.description || '—' }}</td>
-                  </tr>
-                </tbody>
-              </table>
-              <div v-if="!shipmentDetail?.events?.length" class="hint">{{ t('empty') }}</div>
-            </template>
-
-            <label>
-              {{ t('note') }}
-              <input v-model.trim="editor.note" />
-            </label>
-          </template>
-
-          <!-- 退款：订单、退款类型、退货商品都从关联数据中选择 -->
-          <template v-else-if="page === 'refunds'">
-            <label>
-              {{ t('orderNumber') }}
-              <select
-                v-model="editor.order_number"
-                :disabled="editing"
-                @change="onRefundOrderChange"
-              >
-                <option value="">{{ t('selectOrder') }}</option>
-                <option v-for="o in refundableOrders" :key="o.order_number" :value="o.order_number">
-                  {{ o.order_number }} · {{ t(o.status) }}
-                </option>
-              </select>
-            </label>
-            <div v-if="orderDetail" class="readonly">
-              {{ t('totalAmount') }} ¥{{ orderDetail.total_amount }} · {{ t('refundable') }} ¥{{
-                orderDetail.refundable_amount
-              }}
-            </div>
-            <div class="form-grid">
-              <label>
-                {{ t('refundType') }}
-                <select
-                  v-model="editor.refund_type"
-                  :disabled="editing"
-                  @change="onRefundTypeChange"
-                >
-                  <option v-for="type in refundTypes" :key="type" :value="type">
-                    {{ t(type) }}
-                  </option>
-                </select>
-              </label>
-              <label>
-                {{ t('amount') }}
-                <input
-                  v-model.number="editor.amount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  :max="orderDetail?.refundable_amount"
-                  :disabled="editing"
-                />
-              </label>
-            </div>
-            <label>
-              {{ t('reason') }}
-              <textarea v-model.trim="editor.reason" rows="3" required></textarea>
-            </label>
-
-            <template v-if="editor.refund_type === 'RETURN_AND_REFUND'">
-              <div class="section-title">{{ t('returnItems') }}</div>
-              <div v-if="!orderDetail" class="hint">{{ t('selectOrderFirst') }}</div>
-              <div v-for="r in editor.return_items" :key="r.orderItemId" class="item-line">
-                <div class="line-name">{{ r.name }} ({{ r.sku }})</div>
-                <label class="qty">
-                  {{ t('quantity') }}
-                  <input
-                    v-model.number="r.quantity"
-                    type="number"
-                    min="0"
-                    :max="r.max"
-                    step="1"
-                    :disabled="editing"
-                  />
-                </label>
-                <span class="hint">/ {{ r.max }}</span>
-              </div>
-            </template>
-
-            <template v-if="editing && refundDetail">
-              <div class="section-title">{{ t('reviewStatus') }}</div>
-              <div class="readonly">
-                {{ t(refundDetail.status) }} · {{ t('inventoryReceived') }}:
-                {{ refundDetail.inventory_received ? t('yes') : t('no') }}
-              </div>
-            </template>
-          </template>
-
-          <!-- 库存：编辑时库存只能走调整接口，并展示关联订单与流水 -->
-          <template v-else-if="page === 'inventory'">
-            <div class="form-grid">
-              <label>
-                {{ t('sku') }}
-                <input v-model.trim="editor.sku" required :disabled="editing" />
-              </label>
-              <label>
-                {{ t('name') }}
-                <input v-model.trim="editor.name" required />
-              </label>
-            </div>
-            <div class="form-grid">
-              <label>
-                {{ t('price') }}
-                <input v-model.number="editor.price" type="number" min="0" step="0.01" required />
-              </label>
-              <label v-if="!editing">
-                {{ t('stock') }}
-                <input v-model.number="editor.stock" type="number" min="0" step="1" required />
-              </label>
-              <label v-else>
-                {{ t('stock') }}
-                <input :value="editor.stock" type="number" disabled />
-                <span class="hint">{{ t('stockHint') }}</span>
-              </label>
-            </div>
-
-            <template v-if="editing">
-              <div class="section-title">{{ t('stockAdjustment') }}</div>
-              <div class="form-grid">
-                <label>
-                  {{ t('delta') }}
-                  <input
-                    v-model.number="editor.delta"
-                    type="number"
-                    step="1"
-                    placeholder="-3 / +5"
-                  />
-                </label>
-                <label>
-                  {{ t('note') }}
-                  <input v-model.trim="editor.note" />
-                </label>
-              </div>
-              <div class="section-title">{{ t('linkedOrders') }}</div>
-              <table class="mini-table">
-                <thead>
-                  <tr>
-                    <th>{{ t('order_number') }}</th>
-                    <th>{{ t('status') }}</th>
-                    <th>{{ t('quantity') }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="o in linkedOrders" :key="o.order_number">
-                    <td>{{ o.order_number }}</td>
-                    <td>{{ t(o.order_status) }}</td>
-                    <td>{{ o.quantity }}</td>
-                  </tr>
-                </tbody>
-              </table>
-              <div v-if="!linkedOrders.length" class="hint">{{ t('noLinked') }}</div>
-              <div class="section-title">{{ t('stockMovements') }}</div>
-              <table class="mini-table">
-                <thead>
-                  <tr>
-                    <th>{{ t('movementType') }}</th>
-                    <th>{{ t('delta') }}</th>
-                    <th>{{ t('balanceAfter') }}</th>
-                    <th>{{ t('reference') }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="m in movements" :key="m.id">
-                    <td>{{ m.movement_type }}</td>
-                    <td>{{ m.delta }}</td>
-                    <td>{{ m.balance_after }}</td>
-                    <td>{{ m.reference }}</td>
-                  </tr>
-                </tbody>
-              </table>
-              <div v-if="!movements.length" class="hint">{{ t('noLinked') }}</div>
-            </template>
-          </template>
-
-          <!-- 咨询 -->
-          <template v-else>
-            <label>
-              {{ t('customer_email') }}
-              <input v-model.trim="editor.customer_email" type="email" required />
-            </label>
-            <label>
-              {{ t('subject') }}
-              <input v-model.trim="editor.subject" required />
-            </label>
-            <label>
-              {{ t('body') }}
-              <textarea v-model.trim="editor.body" rows="4" required></textarea>
-            </label>
-            <label v-if="editing">
-              {{ t('category') }}
-              <select v-model="editor.category">
-                <option v-for="category in inquiryCategories" :key="category" :value="category">
-                  {{ t(category) }}
-                </option>
-              </select>
-            </label>
-          </template>
-        </div>
-
-        <div class="modal-foot">
-          <button @click="saveManagement" :disabled="busy">{{ t('save') }}</button>
-          <button class="secondary" @click="closeForm">{{ t('cancel') }}</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- 退货验收弹窗 -->
-    <div v-if="showReceive" class="modal-backdrop" @click.self="showReceive = false">
-      <div class="modal small" role="dialog" aria-modal="true">
-        <div class="modal-head">
-          <h3>{{ t('receive') }}</h3>
-          <button class="icon" @click="showReceive = false">×</button>
-        </div>
-        <div class="modal-body">
-          <div v-for="line in receiveLines" :key="line.order_item_id" class="item-line">
-            <div class="line-name">{{ line.name }} ({{ line.sku }})</div>
-            <label class="qty">
-              {{ t('quantity') }}
-              <input
-                v-model.number="line.accepted_quantity"
-                type="number"
-                min="0"
-                :max="line.max"
-                step="1"
-              />
-            </label>
-          </div>
-        </div>
-        <div class="modal-foot">
-          <button @click="confirmReceive" :disabled="busy">{{ t('save') }}</button>
-          <button class="secondary" @click="showReceive = false">{{ t('cancel') }}</button>
-        </div>
-      </div>
-    </div>
+    <!-- EN: Dedicated management modals; App.vue keeps editor state, validation and every API call. -->
+    <!-- 中文：独立的管理弹窗；editor 状态、校验与全部 API 调用仍由 App.vue 负责。 -->
+    <OrderEditor
+      v-if="showForm && page === 'orders'"
+      :locale="locale"
+      :page="page"
+      :busy="busy"
+      :editing="editing"
+      :editor="editor"
+      :customers="customers"
+      :product-options="productOptions"
+      :order-detail="orderDetail"
+      :order-statuses="orderStatuses"
+      @close="closeForm"
+      @save="saveManagement"
+      @add-item="addItemLine"
+      @remove-item="removeItemLine"
+    />
+    <ShipmentEditor
+      v-if="showForm && page === 'shipments'"
+      :locale="locale"
+      :page="page"
+      :busy="busy"
+      :editing="editing"
+      :editor="editor"
+      :shippable-orders="shippableOrders"
+      :order-detail="orderDetail"
+      :shipped-total="shippedTotal"
+      :ordered-total="orderedTotal"
+      :carriers="carriers"
+      :shipment-lines="shipmentLines"
+      :shipment-status-options="shipmentStatusOptions"
+      :shipment-detail="shipmentDetail"
+      @close="closeForm"
+      @save="saveManagement"
+      @shipment-order-change="onShipmentOrderChange"
+    />
+    <RefundEditor
+      v-if="showForm && page === 'refunds'"
+      :locale="locale"
+      :page="page"
+      :busy="busy"
+      :editing="editing"
+      :editor="editor"
+      :refundable-orders="refundableOrders"
+      :order-detail="orderDetail"
+      :refund-types="refundTypes"
+      :refund-detail="refundDetail"
+      @close="closeForm"
+      @save="saveManagement"
+      @order-change="onRefundOrderChange"
+      @refund-type-change="onRefundTypeChange"
+    />
+    <InventoryEditor
+      v-if="showForm && page === 'inventory'"
+      :locale="locale"
+      :page="page"
+      :busy="busy"
+      :editing="editing"
+      :editor="editor"
+      :linked-orders="linkedOrders"
+      :movements="movements"
+      @close="closeForm"
+      @save="saveManagement"
+    />
+    <InquiryEditor
+      v-if="showForm && page === 'inquiries'"
+      :locale="locale"
+      :page="page"
+      :busy="busy"
+      :editing="editing"
+      :editor="editor"
+      :inquiry-categories="inquiryCategories"
+      @close="closeForm"
+      @save="saveManagement"
+    />
+    <ReceiveRefundModal
+      v-if="showReceive"
+      :locale="locale"
+      :busy="busy"
+      :lines="receiveLines"
+      @close="showReceive = false"
+      @receive="confirmReceive"
+    />
 
     <GlobalFeedback :error="error" />
   </main>
@@ -783,6 +251,14 @@ import InventoryView from './views/InventoryView.vue'
 import OrdersView from './views/OrdersView.vue'
 import ShipmentsView from './views/ShipmentsView.vue'
 import RefundsView from './views/RefundsView.vue'
+// EN: Management modals are presentation-only; App.vue still owns editor data and API calls.
+// 中文：管理弹窗只负责展示；editor 数据与 API 调用仍归 App.vue 所有。
+import OrderEditor from './components/management/OrderEditor.vue'
+import ShipmentEditor from './components/management/ShipmentEditor.vue'
+import RefundEditor from './components/management/RefundEditor.vue'
+import InventoryEditor from './components/management/InventoryEditor.vue'
+import InquiryEditor from './components/management/InquiryEditor.vue'
+import ReceiveRefundModal from './components/management/ReceiveRefundModal.vue'
 import {
   ORDER_STATUSES,
   INQUIRY_CATEGORIES,
@@ -802,7 +278,13 @@ export default {
     InventoryView,
     OrdersView,
     ShipmentsView,
-    RefundsView
+    RefundsView,
+    OrderEditor,
+    ShipmentEditor,
+    RefundEditor,
+    InventoryEditor,
+    InquiryEditor,
+    ReceiveRefundModal
   },
   data: () => ({
     locale: localStorage.getItem('order-ai-locale') || 'zh',
@@ -1458,7 +940,28 @@ export default {
           this.error = e.message
         })
     },
+    // EN: Reject invalid receive quantities before any API call: finite integer, >= 0 and <= the
+    //     remaining amount. Inventory return stays on the server; this is UI-side validation only.
+    // 中文：调用验收 API 前拦截非法数量：有限整数、不小于 0、且不超过剩余可验收量。
+    //     库存回收仍由服务端负责；这里仅做界面侧校验，不改变验收请求结构。
+    validReceiveQuantity(line) {
+      const raw = line.accepted_quantity
+      const q = Number(raw)
+      return (
+        raw !== '' &&
+        raw !== null &&
+        raw !== undefined &&
+        Number.isFinite(q) &&
+        Number.isInteger(q) &&
+        q >= 0 &&
+        q <= Number(line.max)
+      )
+    },
     confirmReceive() {
+      if (!this.receiveLines.every(line => this.validReceiveQuantity(line))) {
+        this.error = this.t('invalidReceiveQuantity')
+        return
+      }
       return this.run(async () => {
         await refunds.receiveRefund(this.receiveRefundId, {
           items: this.receiveLines.map(l => ({
