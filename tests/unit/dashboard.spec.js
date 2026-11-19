@@ -93,10 +93,11 @@ describe('dashboard rendering', () => {
     expect(wrapper.findComponent(GlobalFeedback).exists()).toBe(true)
   })
 
-  it('does not render the view on a management page', async () => {
+  it('hides the view on a management page without unmounting it', async () => {
     const { wrapper, view } = await mountAt('/orders')
 
-    expect(view.exists()).toBe(false)
+    expect(view.exists()).toBe(true)
+    expect(view.isVisible()).toBe(false)
     expect(wrapper.find('section.management').exists()).toBe(true)
   })
 })
@@ -213,17 +214,100 @@ describe('dashboard navigation and requests', () => {
     expect(wrapper.findComponent(DashboardView).exists()).toBe(true)
   })
 
-  it('unmounts the view when switching to a management page and back', async () => {
+  it('keeps the view mounted after navigating to a management page', async () => {
     const { wrapper, view } = await mountAt('/dashboard')
 
     await wrapper.findAll('nav.menu button').at(3).trigger('click')
     await flush()
-    expect(view.exists()).toBe(false)
+
     expect(wrapper.vm.page).toBe('refunds')
+    expect(view.exists()).toBe(true)
+    expect(wrapper.findComponent(DashboardView).exists()).toBe(true)
+  })
+
+  it('hides the view while a management page is active', async () => {
+    const { wrapper, view } = await mountAt('/dashboard')
+
+    await wrapper.findAll('nav.menu button').at(1).trigger('click')
+    await flush()
+
+    expect(view.isVisible()).toBe(false)
+    expect(wrapper.find('section.management').isVisible()).toBe(true)
+  })
+
+  it('shows the view again when navigating back', async () => {
+    const { wrapper, view } = await mountAt('/dashboard')
+
+    await wrapper.findAll('nav.menu button').at(2).trigger('click')
+    await flush()
+    expect(view.isVisible()).toBe(false)
 
     await wrapper.findAll('nav.menu button').at(0).trigger('click')
     await flush()
-    expect(wrapper.findComponent(DashboardView).exists()).toBe(true)
+
+    expect(wrapper.vm.page).toBe('dashboard')
+    expect(view.isVisible()).toBe(true)
+    expect(wrapper.find('section.management').exists()).toBe(false)
+  })
+
+  it('preserves every piece of Dashboard local state across navigation', async () => {
+    const { wrapper, view } = await mountAt('/dashboard')
+    await wrapper.setData({ orderOptions: [{ order_number: 'ORD-1', status: 'PROCESSING' }] })
+    await view.setData({
+      form: { customer_email: 'a@b.com', subject: 'Where is my order?', body: 'Please help' },
+      email: 'a@b.com',
+      customer: { name: '张三', email: 'a@b.com' },
+      orders: [{ order_number: 'ORD-1', status: 'PROCESSING', items: [] }],
+      sku: 'MUG-001',
+      product: { sku: 'MUG-001', name: 'Mug', stock: 5, price: '9.90' },
+      refund: { order_number: 'ORD-1' }
+    })
+
+    await wrapper.findAll('nav.menu button').at(4).trigger('click')
+    await flush()
+    await wrapper.findAll('nav.menu button').at(0).trigger('click')
+    await flush()
+
+    // Inquiry form, customer lookup input and result, product lookup input and result, refund selection.
+    expect(view.vm.form).toEqual({
+      customer_email: 'a@b.com',
+      subject: 'Where is my order?',
+      body: 'Please help'
+    })
+    expect(view.vm.email).toBe('a@b.com')
+    expect(view.vm.customer).toEqual({ name: '张三', email: 'a@b.com' })
+    expect(view.vm.orders).toHaveLength(1)
+    expect(view.vm.sku).toBe('MUG-001')
+    expect(view.vm.product.name).toBe('Mug')
+    expect(view.vm.refund).toEqual({ order_number: 'ORD-1' })
+
+    expect(view.findAll('input').at(0).element.value).toBe('a@b.com')
+    expect(view.findAll('input').at(2).element.value).toBe('a@b.com')
+    expect(view.findAll('input').at(5).element.value).toBe('MUG-001')
+    expect(view.find('select').element.value).toBe('ORD-1')
+  })
+
+  it('lets a pending request finish after navigation and resets the global busy state', async () => {
+    let resolveRequest
+    api.post.mockImplementation(() => new Promise(resolve => (resolveRequest = resolve)))
+    const { wrapper, view } = await mountAt('/dashboard')
+
+    const pending = view.vm.classify()
+    await flush()
+    expect(wrapper.vm.busy).toBe(true)
+
+    await wrapper.findAll('nav.menu button').at(1).trigger('click')
+    await flush()
+    expect(wrapper.vm.page).toBe('orders')
+    expect(view.isVisible()).toBe(false)
+
+    resolveRequest({ data: { category: 'ORDER_QUERY' } })
+    await pending
+    await flush()
+
+    expect(view.vm.inquiryResult.category).toBe('ORDER_QUERY')
+    expect(wrapper.vm.busy).toBe(false)
+    expect(wrapper.vm.error).toBe('')
   })
 
   it('hands refund navigation to App.vue instead of navigating itself', async () => {
@@ -235,7 +319,7 @@ describe('dashboard navigation and requests', () => {
     expect(wrapper.vm.page).toBe('refunds')
     expect(wrapper.vm.showForm).toBe(true)
     expect(wrapper.vm.editor.order_number).toBe('ORD-9')
-    expect(view.exists()).toBe(false)
+    expect(view.isVisible()).toBe(false)
     expect(window.scrollTo).toHaveBeenCalled()
   })
 

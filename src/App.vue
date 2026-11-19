@@ -5,10 +5,10 @@
     <AppHeader :locale="locale" :health="health" @change-locale="setLocale" />
     <AppNavigation :menu="menu" :page="page" :locale="locale" @navigate="openPage" />
 
-    <!-- EN: Dashboard page is a dedicated view; App.vue keeps the shell and global state. -->
-    <!-- 中文：工作台页面已拆分为独立视图；App.vue 保留外壳与全局状态。 -->
+    <!-- EN: v-show keeps the Dashboard instance (and its local state) alive across page switches. -->
+    <!-- 中文：v-show 让工作台实例及其局部状态在页面切换时保持存活，不被销毁。 -->
     <DashboardView
-      v-if="page === 'dashboard'"
+      v-show="page === 'dashboard'"
       :locale="locale"
       :busy="busy"
       :refundable-orders="refundableOrders"
@@ -17,7 +17,7 @@
       @open-refund="openRefundFor"
     />
 
-    <section v-else class="card management">
+    <section v-if="page !== 'dashboard'" class="card management">
       <div class="management-heading">
         <h2>{{ t(page) }}</h2>
         <button @click="beginCreate">{{ t('add_new') }}</button>
