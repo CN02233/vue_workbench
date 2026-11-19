@@ -87,9 +87,36 @@
       @delete="removeRow"
     />
 
+    <!-- EN: Shipments has its own view; detail/edit modal and workflows stay in App.vue. -->
+    <!-- 中文：物流页使用独立视图；详情/编辑弹窗与工作流仍留在 App.vue。 -->
+    <ShipmentsView
+      v-if="page === 'shipments'"
+      :locale="locale"
+      :rows="filteredRows"
+      :columns="columns"
+      :filters="filters"
+      :filter-fields="filterFields"
+      :page-number="pageNumber"
+      :page-size="pageSize"
+      :total-pages="totalPages"
+      :total-elements="totalElements"
+      @update-filter="setFilterValue"
+      @search="searchPage"
+      @reset="resetFilters"
+      @page="loadPage"
+      @page-size="setPageSize"
+      @create="beginCreate"
+      @edit="beginEdit"
+      @delete="removeRow"
+    />
+
     <section
       v-if="
-        page !== 'dashboard' && page !== 'inquiries' && page !== 'inventory' && page !== 'orders'
+        page !== 'dashboard' &&
+        page !== 'inquiries' &&
+        page !== 'inventory' &&
+        page !== 'orders' &&
+        page !== 'shipments'
       "
       class="card management"
     >
@@ -725,6 +752,7 @@ import DashboardView from './views/DashboardView.vue'
 import InquiriesView from './views/InquiriesView.vue'
 import InventoryView from './views/InventoryView.vue'
 import OrdersView from './views/OrdersView.vue'
+import ShipmentsView from './views/ShipmentsView.vue'
 import {
   ORDER_STATUSES,
   INQUIRY_CATEGORIES,
@@ -742,7 +770,8 @@ export default {
     DashboardView,
     InquiriesView,
     InventoryView,
-    OrdersView
+    OrdersView,
+    ShipmentsView
   },
   data: () => ({
     locale: localStorage.getItem('order-ai-locale') || 'zh',
