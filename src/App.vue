@@ -5,105 +5,17 @@
     <AppHeader :locale="locale" :health="health" @change-locale="setLocale" />
     <AppNavigation :menu="menu" :page="page" :locale="locale" @navigate="openPage" />
 
-    <section v-if="page === 'dashboard'" class="grid">
-      <article class="card inquiry">
-        <h2>{{ t('inquiryTitle') }}</h2>
-        <p class="muted">{{ t('inquiryHelp') }}</p>
-        <label>
-          {{ t('customerEmail') }}
-          <input v-model="form.customer_email" placeholder="customer@example.com" />
-        </label>
-        <label>
-          {{ t('subject') }}
-          <input v-model="form.subject" :placeholder="t('subjectPlaceholder')" />
-        </label>
-        <label>
-          {{ t('inquiryContent') }}
-          <textarea v-model="form.body" rows="5" :placeholder="t('inquiryPlaceholder')"></textarea>
-        </label>
-        <button @click="classify" :disabled="busy">{{ t('classify') }}</button>
-        <div v-if="inquiryResult" class="result">
-          <span class="tag">{{ t(inquiryResult.category) }}</span>
-          {{ t('inquirySaved') }}
-        </div>
-      </article>
-
-      <article class="card">
-        <h2>{{ t('customerOrders') }}</h2>
-        <p class="muted">{{ t('customerHelp') }}</p>
-        <div class="row">
-          <input v-model="email" placeholder="john@example.com" />
-          <button class="secondary" @click="lookupCustomer">
-            {{ t('search') }}
-          </button>
-        </div>
-        <div class="customer-form">
-          <h3>{{ t('newCustomer') }}</h3>
-          <label>
-            {{ t('customerName') }}
-            <input v-model="newCustomer.name" :placeholder="t('customerName')" />
-          </label>
-          <label>
-            {{ t('customerEmail') }}
-            <input v-model="newCustomer.email" type="email" placeholder="customer@example.com" />
-          </label>
-          <button class="secondary" @click="createCustomer" :disabled="busy">
-            {{ t('createCustomer') }}
-          </button>
-        </div>
-        <div v-if="customerCreated" class="result">{{ t('customerCreated') }}</div>
-        <div v-if="customer" class="result">
-          <b>{{ customer.name }}</b>
-          <div>{{ customer.email }}</div>
-        </div>
-        <div v-for="o in orders" :key="o.order_number" class="order">
-          <b>{{ o.order_number }}</b>
-          <span>{{ t(o.status) }}</span>
-          <div>{{ t('tracking') }} {{ o.tracking_number || t('notAvailable') }}</div>
-          <div v-for="i in o.items" :key="i.id">{{ i.name }} × {{ i.quantity }}</div>
-          <button class="link" @click="openRefundFor(o.order_number)">
-            {{ t('requestRefund') }}
-          </button>
-        </div>
-      </article>
-
-      <article class="card">
-        <h2>{{ t('productLookup') }}</h2>
-        <div class="row">
-          <input v-model="sku" :placeholder="t('skuPlaceholder')" />
-          <button class="secondary" @click="lookupProduct">
-            {{ t('search') }}
-          </button>
-        </div>
-        <div v-if="product" class="result">
-          <b>{{ product.name }}</b>
-          <div>
-            SKU {{ product.sku }} · {{ t('stock') }} {{ product.stock }} · ¥{{ product.price }}
-          </div>
-        </div>
-      </article>
-
-      <article class="card">
-        <h2>{{ t('refundTitle') }}</h2>
-        <p class="muted">{{ t('refundHelp') }}</p>
-        <label>
-          {{ t('orderNumber') }}
-          <select v-model="refund.order_number">
-            <option value="">{{ t('selectOrder') }}</option>
-            <option v-for="o in refundableOrders" :key="o.order_number" :value="o.order_number">
-              {{ o.order_number }} · {{ t(o.status) }}
-            </option>
-          </select>
-        </label>
-        <button
-          class="warm"
-          :disabled="!refund.order_number"
-          @click="openRefundFor(refund.order_number)"
-        >
-          {{ t('requestRefund') }}
-        </button>
-      </article>
-    </section>
+    <!-- EN: Dashboard page is a dedicated view; App.vue keeps the shell and global state. -->
+    <!-- 中文：工作台页面已拆分为独立视图；App.vue 保留外壳与全局状态。 -->
+    <DashboardView
+      v-if="page === 'dashboard'"
+      :locale="locale"
+      :busy="busy"
+      :refundable-orders="refundableOrders"
+      @feedback="setFeedback"
+      @options-changed="loadOptions"
+      @open-refund="openRefundFor"
+    />
 
     <section v-else class="card management">
       <div class="management-heading">
@@ -728,13 +640,13 @@ import * as refunds from './api/refund'
 import * as products from './api/product'
 import * as customers from './api/customer'
 import * as resources from './api/resources'
-import { submitInquiry } from './services/inquiryService'
 import { formatTime as formatTimeValue } from './utils/format'
-// EN: Application shell components; business pages stay in App.vue for this task.
-// 中文：应用外壳组件；本任务中业务页面仍保留在 App.vue。
+// EN: Application shell components and the extracted Dashboard view.
+// 中文：应用外壳组件与已提取的工作台视图。
 import AppHeader from './components/common/AppHeader.vue'
 import AppNavigation from './components/common/AppNavigation.vue'
 import GlobalFeedback from './components/common/GlobalFeedback.vue'
+import DashboardView from './views/DashboardView.vue'
 import {
   ORDER_STATUSES,
   INQUIRY_CATEGORIES,
@@ -745,7 +657,7 @@ import {
 } from './utils/constants'
 
 export default {
-  components: { AppHeader, AppNavigation, GlobalFeedback },
+  components: { AppHeader, AppNavigation, GlobalFeedback, DashboardView },
   data: () => ({
     locale: localStorage.getItem('order-ai-locale') || 'zh',
     page: 'dashboard',
@@ -801,17 +713,7 @@ export default {
     receiveRefundId: null,
     health: false,
     busy: false,
-    error: '',
-    email: '',
-    customer: null,
-    newCustomer: { name: '', email: '' },
-    customerCreated: false,
-    orders: [],
-    sku: '',
-    product: null,
-    inquiryResult: null,
-    form: { customer_email: '', subject: '', body: '' },
-    refund: { order_number: '' }
+    error: ''
   }),
   watch: {
     locale(value) {
@@ -949,6 +851,12 @@ export default {
     // 中文：语言状态仍在 App.vue，原有 watcher 继续负责写入 localStorage。
     setLocale(value) {
       this.locale = value
+    },
+    // EN: DashboardView reports loading/error state here so global state stays in one place.
+    // 中文：工作台视图把加载/错误状态上报到这里，保证全局状态仍只有一份。
+    setFeedback({ busy, error } = {}) {
+      if (busy !== undefined) this.busy = busy
+      if (error !== undefined) this.error = error
     },
     async run(fn) {
       this.error = ''
@@ -1405,47 +1313,6 @@ export default {
         })
         this.showReceive = false
         await this.loadPage(this.pageNumber)
-      })
-    },
-
-    classify() {
-      return this.run(async () => {
-        this.inquiryResult = (await submitInquiry(this.form)).data
-      })
-    },
-    lookupCustomer() {
-      return this.run(async () => {
-        this.customerCreated = false
-        this.customer = null
-        this.orders = []
-        try {
-          this.customer = (await customers.getCustomerByEmail(this.email)).data
-          this.orders = (await customers.getCustomerOrders(this.email)).data
-        } catch (e) {
-          if (e.message === 'Customer not found') throw new Error(this.t('customerNotFound'))
-          throw e
-        }
-      })
-    },
-    createCustomer() {
-      return this.run(async () => {
-        try {
-          const saved = (await customers.createCustomer(this.newCustomer)).data
-          this.customer = saved
-          this.email = saved.email
-          this.orders = []
-          this.customerCreated = true
-          this.newCustomer = { name: '', email: '' }
-          this.loadOptions()
-        } catch (e) {
-          if (e.response?.status === 409) throw new Error(this.t('customerAlreadyExists'))
-          throw e
-        }
-      })
-    },
-    lookupProduct() {
-      return this.run(async () => {
-        this.product = (await products.getProduct(this.sku)).data
       })
     }
   }
