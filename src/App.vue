@@ -17,7 +17,30 @@
       @open-refund="openRefundFor"
     />
 
-    <section v-if="page !== 'dashboard'" class="card management">
+    <!-- EN: Inquiries has its own view; the generic management section handles the other pages. -->
+    <!-- 中文：咨询页使用独立视图；通用管理区只负责其余管理页面。 -->
+    <InquiriesView
+      v-if="page === 'inquiries'"
+      :locale="locale"
+      :rows="filteredRows"
+      :columns="columns"
+      :filters="filters"
+      :filter-fields="filterFields"
+      :page-number="pageNumber"
+      :page-size="pageSize"
+      :total-pages="totalPages"
+      :total-elements="totalElements"
+      @update-filter="setFilterValue"
+      @search="searchPage"
+      @reset="resetFilters"
+      @page="loadPage"
+      @page-size="setPageSize"
+      @create="beginCreate"
+      @edit="beginEdit"
+      @delete="removeRow"
+    />
+
+    <section v-if="page !== 'dashboard' && page !== 'inquiries'" class="card management">
       <div class="management-heading">
         <h2>{{ t(page) }}</h2>
         <button @click="beginCreate">{{ t('add_new') }}</button>
@@ -647,6 +670,7 @@ import AppHeader from './components/common/AppHeader.vue'
 import AppNavigation from './components/common/AppNavigation.vue'
 import GlobalFeedback from './components/common/GlobalFeedback.vue'
 import DashboardView from './views/DashboardView.vue'
+import InquiriesView from './views/InquiriesView.vue'
 import {
   ORDER_STATUSES,
   INQUIRY_CATEGORIES,
@@ -657,7 +681,7 @@ import {
 } from './utils/constants'
 
 export default {
-  components: { AppHeader, AppNavigation, GlobalFeedback, DashboardView },
+  components: { AppHeader, AppNavigation, GlobalFeedback, DashboardView, InquiriesView },
   data: () => ({
     locale: localStorage.getItem('order-ai-locale') || 'zh',
     page: 'dashboard',
@@ -1224,6 +1248,15 @@ export default {
       })
     },
 
+    // EN: InquiriesView reports filter/page-size changes; state and requests stay in App.vue.
+    // 中文：咨询视图只上报筛选与每页条数的变化；状态和请求仍由 App.vue 负责。
+    setFilterValue({ key, value }) {
+      this.filters[key] = value
+    },
+    setPageSize(value) {
+      this.pageSize = value
+      this.changePageSize()
+    },
     searchPage() {
       this.loadPage(0)
     },
