@@ -1,37 +1,9 @@
 <template>
   <main class="shell">
-    <header>
-      <div>
-        <small>ORDER AI · CUSTOMER OPERATIONS</small>
-        <h1>{{ t('title') }}</h1>
-        <p>{{ t('subtitle') }}</p>
-      </div>
-      <div class="header-actions">
-        <label class="language-label">
-          {{ t('language') }}
-          <select v-model="locale">
-            <option value="zh">中文</option>
-            <option value="en">English</option>
-            <option value="es">Español</option>
-          </select>
-        </label>
-        <span class="status">
-          <i></i>
-          {{ t('service') }} {{ health ? t('online') : t('offline') }}
-        </span>
-      </div>
-    </header>
-
-    <nav class="menu">
-      <button
-        v-for="item in menu"
-        :key="item.id"
-        :class="{ active: page === item.id }"
-        @click="openPage(item.id)"
-      >
-        {{ t(item.id) }}
-      </button>
-    </nav>
+    <!-- EN: Header/navigation shells are reusable components; state stays in App.vue. -->
+    <!-- 中文：头部与导航外壳已提取为可复用组件；状态仍保留在 App.vue。 -->
+    <AppHeader :locale="locale" :health="health" @change-locale="setLocale" />
+    <AppNavigation :menu="menu" :page="page" :locale="locale" @navigate="openPage" />
 
     <section v-if="page === 'dashboard'" class="grid">
       <article class="card inquiry">
@@ -740,13 +712,13 @@
       </div>
     </div>
 
-    <div v-if="error" class="toast">{{ error }}</div>
+    <GlobalFeedback :error="error" />
   </main>
 </template>
 
 <script>
-// EN: Imports extracted modules; component behavior and template stay unchanged.
-// 中文：引入已提取的模块；组件行为与模板保持不变。
+// EN: Imports extracted modules; business behavior stays unchanged while shell markup delegates to common components.
+// 中文：引入已提取的模块；业务行为保持不变，外壳模板交由 common 组件渲染。
 import { messages } from './i18n'
 import { health } from './api/http'
 import { pageFromRoute } from './utils/routes'
@@ -758,6 +730,11 @@ import * as customers from './api/customer'
 import * as resources from './api/resources'
 import { submitInquiry } from './services/inquiryService'
 import { formatTime as formatTimeValue } from './utils/format'
+// EN: Application shell components; business pages stay in App.vue for this task.
+// 中文：应用外壳组件；本任务中业务页面仍保留在 App.vue。
+import AppHeader from './components/common/AppHeader.vue'
+import AppNavigation from './components/common/AppNavigation.vue'
+import GlobalFeedback from './components/common/GlobalFeedback.vue'
 import {
   ORDER_STATUSES,
   INQUIRY_CATEGORIES,
@@ -768,6 +745,7 @@ import {
 } from './utils/constants'
 
 export default {
+  components: { AppHeader, AppNavigation, GlobalFeedback },
   data: () => ({
     locale: localStorage.getItem('order-ai-locale') || 'zh',
     page: 'dashboard',
@@ -966,6 +944,11 @@ export default {
     },
     t(key) {
       return messages[this.locale]?.[key] || key
+    },
+    // EN: Locale stays in App.vue so the existing watcher keeps persisting it to localStorage.
+    // 中文：语言状态仍在 App.vue，原有 watcher 继续负责写入 localStorage。
+    setLocale(value) {
+      this.locale = value
     },
     async run(fn) {
       this.error = ''
