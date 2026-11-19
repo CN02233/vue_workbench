@@ -745,611 +745,44 @@
 </template>
 
 <script>
-import axios from 'axios'
-
-const messages = {
-  zh: {
-    title: '客服工作台',
-    subtitle: '咨询处理 · 订单查询 · 退款审核',
-    language: '语言',
-    service: '业务服务',
-    online: '在线',
-    offline: '未连接',
-    inquiryTitle: '处理客户咨询',
-    inquiryHelp: '提交后系统将按规则分类并记录，不使用 LLM。',
-    customerEmail: '客户邮箱',
-    subject: '主题',
-    subjectPlaceholder: 'Where is my order?',
-    inquiryContent: '咨询内容',
-    inquiryPlaceholder: '请输入客户邮件内容',
-    classify: '分类并记录',
-    inquirySaved: '咨询已记录',
-    customerOrders: '客户与订单',
-    customerHelp: '使用客户邮箱查找客户及订单。',
-    newCustomer: '新增客户',
-    customerName: '客户姓名',
-    createCustomer: '保存客户',
-    customerCreated: '客户已创建',
-    customerNotFound: '未找到该客户',
-    customerAlreadyExists: '该邮箱已注册',
-    search: '查询',
-    tracking: '物流：',
-    notAvailable: '暂无',
-    requestRefund: '申请退款',
-    productLookup: '商品库存查询',
-    skuPlaceholder: '例如 MUG-001',
-    stock: '库存',
-    refundTitle: '退款申请',
-    refundHelp: '此操作只创建申请，退款必须由人工审批。',
-    orderNumber: '订单号',
-    reason: '申请原因',
-    reasonPlaceholder: '请描述退款原因',
-    submitReview: '提交人工审核',
-    refundSubmitted: '已提交审核',
-    requestFailed: '请求失败',
-    ORDER_QUERY: '订单查询',
-    PRODUCT_INQUIRY: '商品咨询',
-    REFUND: '退款申请',
-    COMPLAINT: '投诉',
-    OTHER: '其他',
-    SHIPPED: '已发货',
-    PROCESSING: '处理中',
-    DELIVERED: '已送达',
-    CANCELLED: '已取消',
-    PENDING_MANUAL_APPROVAL: '待人工审核',
-    APPROVED_MANUALLY: '已人工批准'
-  },
-  en: {
-    title: 'Customer Support Workbench',
-    subtitle: 'Inquiries · Orders · Refund Review',
-    language: 'Language',
-    service: 'Business API',
-    online: 'Online',
-    offline: 'Offline',
-    inquiryTitle: 'Handle an Inquiry',
-    inquiryHelp: 'Inquiries are classified by rules. No LLM is used.',
-    customerEmail: 'Customer email',
-    subject: 'Subject',
-    subjectPlaceholder: 'Where is my order?',
-    inquiryContent: 'Message',
-    inquiryPlaceholder: 'Enter the customer message',
-    classify: 'Classify and Save',
-    inquirySaved: 'Inquiry saved',
-    customerOrders: 'Customer and Orders',
-    customerHelp: 'Find a customer and their orders by email.',
-    newCustomer: 'Add customer',
-    customerName: 'Customer name',
-    createCustomer: 'Save customer',
-    customerCreated: 'Customer created',
-    customerNotFound: 'Customer not found',
-    customerAlreadyExists: 'This email is already registered',
-    search: 'Search',
-    tracking: 'Tracking:',
-    notAvailable: 'Not available',
-    requestRefund: 'Request refund',
-    productLookup: 'Product Stock Lookup',
-    skuPlaceholder: 'For example, MUG-001',
-    stock: 'Stock:',
-    refundTitle: 'Refund Request',
-    refundHelp: 'This creates a request only. A person must approve any refund.',
-    orderNumber: 'Order number',
-    reason: 'Reason',
-    reasonPlaceholder: 'Describe the reason for the refund',
-    submitReview: 'Submit for Review',
-    refundSubmitted: 'Submitted for review',
-    requestFailed: 'Request failed',
-    ORDER_QUERY: 'Order inquiry',
-    PRODUCT_INQUIRY: 'Product inquiry',
-    REFUND: 'Refund request',
-    COMPLAINT: 'Complaint',
-    OTHER: 'Other',
-    SHIPPED: 'Shipped',
-    PROCESSING: 'Processing',
-    DELIVERED: 'Delivered',
-    CANCELLED: 'Cancelled',
-    PENDING_MANUAL_APPROVAL: 'Pending manual approval',
-    APPROVED_MANUALLY: 'Manually approved'
-  },
-  es: {
-    title: 'Panel de Atención al Cliente',
-    subtitle: 'Consultas · Pedidos · Revisión de reembolsos',
-    language: 'Idioma',
-    service: 'Servicio de negocio',
-    online: 'En línea',
-    offline: 'Desconectado',
-    inquiryTitle: 'Gestionar consulta',
-    inquiryHelp: 'Las consultas se clasifican mediante reglas, sin usar un LLM.',
-    customerEmail: 'Correo del cliente',
-    subject: 'Asunto',
-    subjectPlaceholder: '¿Dónde está mi pedido?',
-    inquiryContent: 'Mensaje',
-    inquiryPlaceholder: 'Escribe el mensaje del cliente',
-    classify: 'Clasificar y guardar',
-    inquirySaved: 'Consulta guardada',
-    customerOrders: 'Cliente y pedidos',
-    customerHelp: 'Busca un cliente y sus pedidos por correo.',
-    newCustomer: 'Añadir cliente',
-    customerName: 'Nombre del cliente',
-    createCustomer: 'Guardar cliente',
-    customerCreated: 'Cliente creado',
-    customerNotFound: 'No se encontró el cliente',
-    customerAlreadyExists: 'Este correo ya está registrado',
-    search: 'Buscar',
-    tracking: 'Seguimiento:',
-    notAvailable: 'No disponible',
-    requestRefund: 'Solicitar reembolso',
-    productLookup: 'Consulta de inventario',
-    skuPlaceholder: 'Por ejemplo, MUG-001',
-    stock: 'Existencias:',
-    refundTitle: 'Solicitud de reembolso',
-    refundHelp: 'Esto solo crea una solicitud. Una persona debe aprobar el reembolso.',
-    orderNumber: 'Número de pedido',
-    reason: 'Motivo',
-    reasonPlaceholder: 'Describe el motivo del reembolso',
-    submitReview: 'Enviar para revisión',
-    refundSubmitted: 'Enviado para revisión',
-    requestFailed: 'Error en la solicitud',
-    ORDER_QUERY: 'Consulta de pedido',
-    PRODUCT_INQUIRY: 'Consulta de producto',
-    REFUND: 'Solicitud de reembolso',
-    COMPLAINT: 'Queja',
-    OTHER: 'Otro',
-    SHIPPED: 'Enviado',
-    PROCESSING: 'En preparación',
-    DELIVERED: 'Entregado',
-    CANCELLED: 'Cancelado',
-    PENDING_MANUAL_APPROVAL: 'Pendiente de aprobación manual',
-    APPROVED_MANUALLY: 'Aprobado manualmente'
-  }
-}
-
-const managementMessages = {
-  zh: {
-    dashboard: '工作台',
-    add_new: '新增',
-    edit: '编辑',
-    save: '保存',
-    cancel: '取消',
-    close: '关闭',
-    remove: '移除',
-    body: '咨询内容',
-    orders: '订单管理',
-    shipments: '物流管理',
-    refunds: '退款管理',
-    inventory: '库存管理',
-    inquiries: '客户咨询管理',
-    filter: '筛选当前页',
-    search: '查询',
-    reset: '重置',
-    all: '全部',
-    page_size: '每页',
-    approve: '批准',
-    reject: '拒绝',
-    receive: '验收入库',
-    delete: '删除',
-    cancelOrder: '取消订单',
-    previous: '上一页',
-    next: '下一页',
-    actions: '操作',
-    empty: '暂无数据',
-    confirmDelete: '确定删除这条记录吗？',
-    confirmCancelOrder: '确定取消此订单吗？取消后将释放占用的库存。',
-    confirmApprove: '确认批准此退款申请？',
-    confirmReject: '确认拒绝此退款申请？',
-    order_number: '订单号',
-    customer_id: '客户ID',
-    customer: '客户',
-    status: '状态',
-    tracking_number: '物流单号',
-    carrier: '物流公司',
-    shipmentStatus: '物流状态',
-    shippedQuantity: '已发数量',
-    shippedAt: '发货时间',
-    deliveredAt: '签收时间',
-    estimatedDelivery: '预计送达',
-    receiverName: '收件人',
-    trackingEvents: '物流轨迹',
-    location: '当前位置',
-    locationPlaceholder: '例如 上海转运中心',
-    description: '轨迹说明',
-    eventPlaceholder: '例如 已到达杭州分拣中心',
-    occurredAt: '发生时间',
-    orderShipments: '订单物流',
-    shipmentItems: '物流单明细',
-    shipAllHint: '默认发剩余全部，可改成部分发货',
-    nothingToShip: '该订单已全部发货',
-    needShipmentItems: '请至少填写一件商品数量',
-    CREATED: '待揽收',
-    PICKED_UP: '已揽收',
-    IN_TRANSIT: '运输中',
-    EXCEPTION: '运输异常',
-    id: '编号',
-    reason: '原因',
-    sku: 'SKU',
-    name: '商品名称',
-    product: '商品',
-    items: '商品明细',
-    addItem: '添加商品',
-    selectCustomer: '选择客户',
-    selectProduct: '选择商品',
-    selectOrder: '选择订单',
-    quantity: '数量',
-    unitPrice: '单价',
-    lineTotal: '小计',
-    availableStock: '可用库存',
-    stock: '库存',
-    stockHint: '库存不能在此修改，请使用下方调整',
-    price: '价格',
-    min_stock: '最低库存',
-    max_stock: '最高库存',
-    min_price: '最低价格',
-    max_price: '最高价格',
-    customer_email: '客户邮箱',
-    subject: '主题',
-    category: '分类',
-    created_at: '创建时间',
-    created_from: '开始时间',
-    created_to: '结束时间',
-    refundType: '退款类型',
-    refund_only: '仅退款',
-    return_and_refund: '退货退款',
-    REFUND_ONLY: '仅退款',
-    RETURN_AND_REFUND: '退货退款',
-    amount: '退款金额',
-    refundable: '可退金额',
-    pendingRefund: '待审占用',
-    totalAmount: '订单总额',
-    returnItems: '退货商品',
-    selectOrderFirst: '请先选择关联订单',
-    reviewStatus: '审核状态',
-    inventoryReceived: '已验收入库',
-    yes: '是',
-    no: '否',
-    stockAdjustment: '库存调整',
-    delta: '变动数量',
-    note: '备注',
-    linkedOrders: '关联订单',
-    stockMovements: '库存流水',
-    movementType: '类型',
-    balanceAfter: '变动后余额',
-    reference: '关联单号',
-    noLinked: '暂无关联记录',
-    order_count: '关联订单',
-    shipped_at: '发货时间',
-    delivered_at: '签收时间',
-    refund_type: '退款类型',
-    productLinked: '已关联订单，不能删除',
-    SHIPPED: '已发货',
-    PROCESSING: '处理中',
-    DELIVERED: '已送达',
-    CANCELLED: '已取消',
-    PENDING_MANUAL_APPROVAL: '待人工审核',
-    APPROVED_MANUALLY: '已人工批准',
-    REJECTED: '已拒绝',
-    ORDER_QUERY: '订单查询',
-    PRODUCT_INQUIRY: '商品咨询',
-    REFUND: '退款申请',
-    COMPLAINT: '投诉',
-    OTHER: '其他'
-  },
-  en: {
-    dashboard: 'Workbench',
-    add_new: 'Add new',
-    edit: 'Edit',
-    save: 'Save',
-    cancel: 'Cancel',
-    close: 'Close',
-    remove: 'Remove',
-    body: 'Message',
-    orders: 'Orders',
-    shipments: 'Logistics',
-    refunds: 'Refunds',
-    inventory: 'Inventory',
-    inquiries: 'Customer inquiries',
-    filter: 'Filter this page',
-    search: 'Search',
-    reset: 'Reset',
-    all: 'All',
-    page_size: 'Page size',
-    approve: 'Approve',
-    reject: 'Reject',
-    receive: 'Receive stock',
-    delete: 'Delete',
-    cancelOrder: 'Cancel order',
-    previous: 'Previous',
-    next: 'Next',
-    actions: 'Actions',
-    empty: 'No records found',
-    confirmDelete: 'Delete this record?',
-    confirmCancelOrder: 'Cancel this order? Reserved stock will be released.',
-    confirmApprove: 'Approve this refund request?',
-    confirmReject: 'Reject this refund request?',
-    order_number: 'Order number',
-    customer_id: 'Customer ID',
-    customer: 'Customer',
-    status: 'Status',
-    tracking_number: 'Tracking number',
-    carrier: 'Carrier',
-    shipmentStatus: 'Shipment status',
-    shippedQuantity: 'Shipped',
-    shippedAt: 'Shipped at',
-    deliveredAt: 'Delivered at',
-    estimatedDelivery: 'Est. delivery',
-    receiverName: 'Receiver',
-    trackingEvents: 'Tracking events',
-    location: 'Location',
-    locationPlaceholder: 'e.g. Shanghai hub',
-    description: 'Event note',
-    eventPlaceholder: 'e.g. Arrived at the Hangzhou sorting centre',
-    occurredAt: 'Occurred at',
-    orderShipments: 'Shipments',
-    shipmentItems: 'Parcel contents',
-    shipAllHint: 'Defaults to every unshipped unit; lower a quantity for a partial shipment',
-    nothingToShip: 'Every unit of this order has been shipped',
-    needShipmentItems: 'Ship at least one unit',
-    CREATED: 'Awaiting pickup',
-    PICKED_UP: 'Picked up',
-    IN_TRANSIT: 'In transit',
-    EXCEPTION: 'Exception',
-    id: 'ID',
-    reason: 'Reason',
-    sku: 'SKU',
-    name: 'Product name',
-    product: 'Product',
-    items: 'Order items',
-    addItem: 'Add item',
-    selectCustomer: 'Select customer',
-    selectProduct: 'Select product',
-    selectOrder: 'Select order',
-    quantity: 'Quantity',
-    unitPrice: 'Unit price',
-    lineTotal: 'Line total',
-    availableStock: 'Available stock',
-    stock: 'Stock',
-    stockHint: 'Stock cannot be edited here; use the adjustment below',
-    price: 'Price',
-    min_stock: 'Min stock',
-    max_stock: 'Max stock',
-    min_price: 'Min price',
-    max_price: 'Max price',
-    customer_email: 'Customer email',
-    subject: 'Subject',
-    category: 'Category',
-    created_at: 'Created at',
-    created_from: 'From',
-    created_to: 'To',
-    refundType: 'Refund type',
-    refund_only: 'Refund only',
-    return_and_refund: 'Return and refund',
-    REFUND_ONLY: 'Refund only',
-    RETURN_AND_REFUND: 'Return and refund',
-    amount: 'Amount',
-    refundable: 'Refundable',
-    pendingRefund: 'Pending',
-    totalAmount: 'Order total',
-    returnItems: 'Return items',
-    selectOrderFirst: 'Select an order first',
-    reviewStatus: 'Review status',
-    inventoryReceived: 'Stock received',
-    yes: 'Yes',
-    no: 'No',
-    stockAdjustment: 'Stock adjustment',
-    delta: 'Delta',
-    note: 'Note',
-    linkedOrders: 'Linked orders',
-    stockMovements: 'Stock movements',
-    movementType: 'Type',
-    balanceAfter: 'Balance after',
-    reference: 'Reference',
-    noLinked: 'No linked records',
-    order_count: 'Orders',
-    shipped_at: 'Shipped at',
-    delivered_at: 'Delivered at',
-    refund_type: 'Refund type',
-    productLinked: 'Linked to orders, cannot be deleted',
-    SHIPPED: 'Shipped',
-    PROCESSING: 'Processing',
-    DELIVERED: 'Delivered',
-    CANCELLED: 'Cancelled',
-    PENDING_MANUAL_APPROVAL: 'Pending review',
-    APPROVED_MANUALLY: 'Approved manually',
-    REJECTED: 'Rejected',
-    ORDER_QUERY: 'Order inquiry',
-    PRODUCT_INQUIRY: 'Product inquiry',
-    REFUND: 'Refund request',
-    COMPLAINT: 'Complaint',
-    OTHER: 'Other'
-  },
-  es: {
-    dashboard: 'Panel',
-    add_new: 'Crear',
-    edit: 'Editar',
-    save: 'Guardar',
-    cancel: 'Cancelar',
-    close: 'Cerrar',
-    remove: 'Quitar',
-    body: 'Mensaje',
-    orders: 'Pedidos',
-    shipments: 'Logística',
-    refunds: 'Reembolsos',
-    inventory: 'Inventario',
-    inquiries: 'Consultas de clientes',
-    filter: 'Filtrar esta página',
-    search: 'Buscar',
-    reset: 'Restablecer',
-    all: 'Todos',
-    page_size: 'Tamaño de página',
-    approve: 'Aprobar',
-    reject: 'Rechazar',
-    receive: 'Recibir stock',
-    delete: 'Eliminar',
-    cancelOrder: 'Cancelar pedido',
-    previous: 'Anterior',
-    next: 'Siguiente',
-    actions: 'Acciones',
-    empty: 'No hay registros',
-    confirmDelete: '¿Eliminar este registro?',
-    confirmCancelOrder: '¿Cancelar este pedido? Se liberará el stock reservado.',
-    confirmApprove: '¿Aprobar esta solicitud de reembolso?',
-    confirmReject: '¿Rechazar esta solicitud de reembolso?',
-    order_number: 'Número de pedido',
-    customer_id: 'ID del cliente',
-    customer: 'Cliente',
-    status: 'Estado',
-    tracking_number: 'Número de seguimiento',
-    carrier: 'Transportista',
-    shipmentStatus: 'Estado del envío',
-    shippedQuantity: 'Enviado',
-    shippedAt: 'Enviado el',
-    deliveredAt: 'Entregado el',
-    estimatedDelivery: 'Entrega estimada',
-    receiverName: 'Destinatario',
-    trackingEvents: 'Eventos de seguimiento',
-    location: 'Ubicación',
-    locationPlaceholder: 'p. ej. Centro de Shanghái',
-    description: 'Nota del evento',
-    eventPlaceholder: 'p. ej. Llegó al centro de clasificación de Hangzhou',
-    occurredAt: 'Ocurrido el',
-    orderShipments: 'Envíos',
-    shipmentItems: 'Contenido del envío',
-    shipAllHint:
-      'Por defecto todas las unidades pendientes; reduce la cantidad para un envío parcial',
-    nothingToShip: 'Todas las unidades ya fueron enviadas',
-    needShipmentItems: 'Envía al menos una unidad',
-    CREATED: 'Pendiente de recogida',
-    PICKED_UP: 'Recogido',
-    IN_TRANSIT: 'En tránsito',
-    EXCEPTION: 'Incidencia',
-    id: 'ID',
-    reason: 'Motivo',
-    sku: 'SKU',
-    name: 'Producto',
-    product: 'Producto',
-    items: 'Artículos del pedido',
-    addItem: 'Añadir artículo',
-    selectCustomer: 'Seleccionar cliente',
-    selectProduct: 'Seleccionar producto',
-    selectOrder: 'Seleccionar pedido',
-    quantity: 'Cantidad',
-    unitPrice: 'Precio unitario',
-    lineTotal: 'Total de línea',
-    availableStock: 'Existencias disponibles',
-    stock: 'Existencias',
-    stockHint: 'Las existencias no se editan aquí; usa el ajuste inferior',
-    price: 'Precio',
-    min_stock: 'Existencias mínimas',
-    max_stock: 'Existencias máximas',
-    min_price: 'Precio mínimo',
-    max_price: 'Precio máximo',
-    customer_email: 'Correo del cliente',
-    subject: 'Asunto',
-    category: 'Categoría',
-    created_at: 'Creado',
-    created_from: 'Desde',
-    created_to: 'Hasta',
-    refundType: 'Tipo de reembolso',
-    refund_only: 'Solo reembolso',
-    return_and_refund: 'Devolución y reembolso',
-    REFUND_ONLY: 'Solo reembolso',
-    RETURN_AND_REFUND: 'Devolución y reembolso',
-    amount: 'Importe',
-    refundable: 'Reembolsable',
-    pendingRefund: 'Pendiente',
-    totalAmount: 'Total del pedido',
-    returnItems: 'Artículos devueltos',
-    selectOrderFirst: 'Selecciona primero un pedido',
-    reviewStatus: 'Estado de revisión',
-    inventoryReceived: 'Stock recibido',
-    yes: 'Sí',
-    no: 'No',
-    stockAdjustment: 'Ajuste de existencias',
-    delta: 'Variación',
-    note: 'Nota',
-    linkedOrders: 'Pedidos relacionados',
-    stockMovements: 'Movimientos de stock',
-    movementType: 'Tipo',
-    balanceAfter: 'Saldo posterior',
-    reference: 'Referencia',
-    noLinked: 'Sin registros relacionados',
-    order_count: 'Pedidos',
-    shipped_at: 'Enviado el',
-    delivered_at: 'Entregado el',
-    refund_type: 'Tipo de reembolso',
-    productLinked: 'Vinculado a pedidos, no se puede eliminar',
-    SHIPPED: 'Enviado',
-    PROCESSING: 'En preparación',
-    DELIVERED: 'Entregado',
-    CANCELLED: 'Cancelado',
-    PENDING_MANUAL_APPROVAL: 'Pendiente de revisión',
-    APPROVED_MANUALLY: 'Aprobado manualmente',
-    REJECTED: 'Rechazado',
-    ORDER_QUERY: 'Consulta de pedido',
-    PRODUCT_INQUIRY: 'Consulta de producto',
-    REFUND: 'Solicitud de reembolso',
-    COMPLAINT: 'Queja',
-    OTHER: 'Otro'
-  }
-}
-
-const api = axios.create({ baseURL: '/api' })
-// A fresh key per submission keeps server retries safe.
-api.interceptors.request.use(config => {
-  config.headers['Idempotency-Key'] =
-    config.headers['Idempotency-Key'] ||
-    (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`)
-  return config
-})
-// Unwrap the standard API envelope.
-api.interceptors.response.use(response => {
-  const envelope = response.data
-  if (envelope && typeof envelope === 'object' && 'status' in envelope && 'data' in envelope) {
-    if (envelope.status === 'error')
-      return Promise.reject(new Error(envelope.message || '请求失败'))
-    response.data = envelope.data
-  }
-  return response
-})
+// EN: Imports extracted modules; component behavior and template stay unchanged.
+// 中文：引入已提取的模块；组件行为与模板保持不变。
+import { messages } from './i18n'
+import { health } from './api/http'
+import { pageFromRoute } from './utils/routes'
+import * as orders from './api/order'
+import * as shipments from './api/shipment'
+import * as refunds from './api/refund'
+import * as products from './api/product'
+import * as customers from './api/customer'
+import * as resources from './api/resources'
+import { submitInquiry } from './services/inquiryService'
+import { formatTime as formatTimeValue } from './utils/format'
+import {
+  ORDER_STATUSES,
+  INQUIRY_CATEGORIES,
+  REFUND_TYPES,
+  CARRIERS,
+  SHIPMENT_TRANSITIONS,
+  MENU_ITEMS
+} from './utils/constants'
 
 export default {
   data: () => ({
     locale: localStorage.getItem('order-ai-locale') || 'zh',
     page: 'dashboard',
-    menu: [
-      { id: 'dashboard', label: '工作台' },
-      { id: 'orders', label: '订单管理' },
-      { id: 'shipments', label: '物流管理' },
-      { id: 'refunds', label: '退款管理' },
-      { id: 'inventory', label: '库存管理' },
-      { id: 'inquiries', label: '客户咨询管理' }
-    ],
+    menu: MENU_ITEMS,
     showForm: false,
     editing: false,
     originalKey: '',
     editor: {},
-    orderStatuses: ['PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'],
-    inquiryCategories: ['ORDER_QUERY', 'PRODUCT_INQUIRY', 'REFUND', 'COMPLAINT', 'OTHER'],
-    refundTypes: ['REFUND_ONLY', 'RETURN_AND_REFUND'],
-    carriers: [
-      'SF Express',
-      'ZTO Express',
-      'YTO Express',
-      'STO Express',
-      'Yunda Express',
-      'JD Logistics',
-      'EMS',
-      'DHL',
-      'UPS',
-      'FedEx'
-    ],
-    // Mirrors the server-side parcel rules so the dropdown never offers an illegal jump.
-    shipmentTransitions: {
-      CREATED: ['CREATED', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED', 'EXCEPTION', 'CANCELLED'],
-      PICKED_UP: ['PICKED_UP', 'IN_TRANSIT', 'DELIVERED', 'EXCEPTION'],
-      IN_TRANSIT: ['IN_TRANSIT', 'DELIVERED', 'EXCEPTION'],
-      EXCEPTION: ['EXCEPTION', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED'],
-      DELIVERED: ['DELIVERED'],
-      CANCELLED: ['CANCELLED']
-    },
+    orderStatuses: ORDER_STATUSES,
+    inquiryCategories: INQUIRY_CATEGORIES,
+    refundTypes: REFUND_TYPES,
+    carriers: CARRIERS,
+    // EN: Status rules now live in utils/constants; value and order unchanged.
+    // 中文：状态规则已移到 utils/constants；取值与顺序不变。
+    shipmentTransitions: SHIPMENT_TRANSITIONS,
     filters: {
       order_number: '',
       customer_id: '',
@@ -1405,11 +838,22 @@ export default {
   watch: {
     locale(value) {
       localStorage.setItem('order-ai-locale', value)
+    },
+    // EN: Keep the active page in sync with browser back/forward and direct hash links.
+    // 中文：浏览器前进后退或直接访问 hash 链接时，保持当前页面与路由同步。
+    $route(to) {
+      const target = pageFromRoute(to)
+      if (target !== this.page) this.applyPage(target, { navigate: false })
     }
   },
   mounted() {
-    api
-      .get('/health')
+    // EN: Optional chaining keeps this a no-op in tests that mount App without a router.
+    // 中文：可选链确保单测在不挂载 router 的情况下此逻辑为空操作。
+    if (this.$route) {
+      const target = pageFromRoute(this.$route)
+      if (target !== this.page) this.applyPage(target, { navigate: false })
+    }
+    health()
       .then(() => {
         this.health = true
       })
@@ -1521,7 +965,7 @@ export default {
       return row[key] === null || row[key] === undefined ? '—' : row[key]
     },
     t(key) {
-      return managementMessages[this.locale]?.[key] || messages[this.locale][key] || key
+      return messages[this.locale]?.[key] || key
     },
     async run(fn) {
       this.error = ''
@@ -1538,12 +982,23 @@ export default {
       return this.productOptions.find(p => p.sku === sku)
     },
     openPage(id) {
+      this.applyPage(id, { navigate: true })
+    },
+
+    // EN: Single place that changes pages: resets paging/filters, loads data and updates the URL.
+    //     The router is optional so existing unit tests keep their original behavior.
+    // 中文：切换页面的统一入口：重置分页/筛选、加载数据并更新 URL。
+    //      router 是可选的，因此现有单测行为保持不变。
+    applyPage(id, { navigate = true } = {}) {
       this.page = id
       this.pageNumber = 0
       Object.keys(this.filters).forEach(k => {
         this.filters[k] = ''
       })
       if (id !== 'dashboard') this.loadPage(0)
+      if (navigate && this.$router && this.$route?.name !== id) {
+        this.$router.push({ name: id }).catch(() => {})
+      }
     },
 
     // Keeps the already selected order visible while editing, even if its status has moved on.
@@ -1563,9 +1018,9 @@ export default {
     async loadOptions() {
       try {
         const [c, p, o] = await Promise.all([
-          api.get('/customers', { params: { limit: 200 } }),
-          api.get('/products', { params: { size: 200 } }),
-          api.get('/orders', { params: { size: 200 } })
+          customers.getCustomers({ limit: 200 }),
+          products.getProducts({ size: 200 }),
+          orders.getOrders({ size: 200 })
         ])
         this.customers = c.data || []
         this.productOptions = p.data?.content || []
@@ -1695,8 +1150,8 @@ export default {
           refund_type: row.refund_type,
           return_items: []
         }
-        api
-          .get(`/refund-requests/${row.id}`)
+        refunds
+          .getRefund(row.id)
           .then(r => {
             this.refundDetail = r.data
           })
@@ -1710,14 +1165,14 @@ export default {
         return
       }
       try {
-        this.orderDetail = (await api.get(`/orders/${encodeURIComponent(number)}`)).data
+        this.orderDetail = (await orders.getOrder(number)).data
       } catch (e) {
         this.orderDetail = null
       }
     },
     async loadShipmentDetail(id) {
       try {
-        this.shipmentDetail = (await api.get(`/shipments/${id}`)).data
+        this.shipmentDetail = (await shipments.getShipment(id)).data
         this.editor.note = this.shipmentDetail.note || ''
         this.editor.receiver_name = this.shipmentDetail.receiver_name || ''
       } catch (e) {
@@ -1735,13 +1190,13 @@ export default {
         .filter(line => line.remaining > 0)
     },
     formatTime(value) {
-      return value ? String(value).replace('T', ' ').slice(0, 16) : '—'
+      return formatTimeValue(value)
     },
     async loadProductRelations(sku) {
       try {
         const [o, m] = await Promise.all([
-          api.get(`/products/${encodeURIComponent(sku)}/orders`, { params: { limit: 10 } }),
-          api.get(`/products/${encodeURIComponent(sku)}/stock-movements`, { params: { limit: 10 } })
+          products.getProductOrders(sku, { limit: 10 }),
+          products.getProductStockMovements(sku, { limit: 10 })
         ])
         this.linkedOrders = o.data || []
         this.movements = m.data || []
@@ -1770,9 +1225,9 @@ export default {
       })
     },
     openRefundFor(number) {
-      this.page = 'refunds'
-      this.pageNumber = 0
-      this.loadPage(0)
+      // EN: applyPage already resets paging, filters and loads the refunds list once.
+      // 中文：applyPage 已重置分页与筛选，并只加载一次退款列表。
+      this.applyPage('refunds', { navigate: true })
       this.beginCreate()
       this.editor.order_number = number
       this.onRefundOrderChange()
@@ -1781,22 +1236,15 @@ export default {
 
     saveManagement() {
       return this.run(async () => {
-        const path = {
-          orders: '/orders',
-          shipments: '/shipments',
-          inventory: '/products',
-          inquiries: '/inquiries',
-          refunds: '/refund-requests'
-        }[this.page]
-        const key = encodeURIComponent(this.originalKey)
+        const key = this.originalKey
         if (this.page === 'orders') {
           if (this.editing)
-            await api.put(`${path}/${key}`, {
+            await resources.updateResource(this.page, key, {
               status: this.editor.status,
               tracking_number: this.editor.tracking_number
             })
           else
-            await api.post(path, {
+            await resources.createResource(this.page, {
               order_number: this.editor.order_number,
               customer_id: this.editor.customer_id,
               items: this.editor.items.map(i => ({ sku: i.sku, quantity: Number(i.quantity) })),
@@ -1804,7 +1252,7 @@ export default {
             })
         } else if (this.page === 'shipments') {
           if (this.editing) {
-            await api.put(`${path}/${key}`, {
+            await resources.updateResource(this.page, key, {
               carrier: this.editor.carrier,
               tracking_number: this.editor.tracking_number,
               status: this.editor.status,
@@ -1821,7 +1269,7 @@ export default {
             const lines = this.shipmentLines.filter(line => Number(line.quantity) > 0)
             if (this.shipmentLines.length && !lines.length)
               throw new Error(this.t('needShipmentItems'))
-            await api.post(path, {
+            await resources.createResource(this.page, {
               order_number: this.editor.order_number,
               carrier: this.editor.carrier,
               tracking_number: this.editor.tracking_number,
@@ -1835,7 +1283,7 @@ export default {
           }
         } else if (this.page === 'inventory') {
           if (this.editing) {
-            await api.put(`${path}/${key}`, {
+            await resources.updateResource(this.page, key, {
               sku: this.editor.sku,
               name: this.editor.name,
               stock: this.editor.stock,
@@ -1843,29 +1291,30 @@ export default {
             })
             const delta = Number(this.editor.delta || 0)
             if (delta !== 0)
-              await api.post(`${path}/${key}/stock-adjustments`, {
+              await products.adjustStock(key, {
                 delta,
                 note: this.editor.note || 'Manual adjustment from workbench'
               })
           } else
-            await api.post(path, {
+            await resources.createResource(this.page, {
               sku: this.editor.sku,
               name: this.editor.name,
               stock: Number(this.editor.stock),
               price: this.editor.price
             })
         } else if (this.page === 'inquiries') {
-          if (this.editing) await api.put(`${path}/${key}`, this.editor)
+          if (this.editing) await resources.updateResource(this.page, key, this.editor)
           else
-            await api.post(path, {
+            await resources.createResource(this.page, {
               customer_email: this.editor.customer_email,
               subject: this.editor.subject,
               body: this.editor.body
             })
         } else {
-          if (this.editing) await api.put(`${path}/${key}`, { reason: this.editor.reason })
+          if (this.editing)
+            await resources.updateResource(this.page, key, { reason: this.editor.reason })
           else
-            await api.post(path, {
+            await resources.createResource(this.page, {
               order_number: this.editor.order_number,
               reason: this.editor.reason,
               amount: Number(this.editor.amount),
@@ -1898,18 +1347,11 @@ export default {
     },
     loadPage(n) {
       return this.run(async () => {
-        const path = {
-          orders: '/orders',
-          shipments: '/shipments',
-          refunds: '/refund-requests',
-          inventory: '/products',
-          inquiries: '/inquiries'
-        }[this.page]
         const params = { page: n, size: this.pageSize }
         Object.entries(this.filters).forEach(([k, v]) => {
           if (v !== '' && v !== null) params[k] = v
         })
-        const result = (await api.get(path, { params })).data
+        const result = (await resources.listResources(this.page, params)).data
         // Paging metadata sits under `page`; older builds returned it flat on the payload.
         const page = result.page || result
         this.rows = result.content || []
@@ -1921,7 +1363,7 @@ export default {
     cancelOrder(row) {
       if (!window.confirm(this.t('confirmCancelOrder'))) return
       return this.run(async () => {
-        await api.put(`/orders/${encodeURIComponent(row.order_number)}`, { status: 'CANCELLED' })
+        await orders.updateOrder(row.order_number, { status: 'CANCELLED' })
         await this.loadPage(this.pageNumber)
       })
     },
@@ -1935,14 +1377,7 @@ export default {
       return this.run(async () => {
         const key =
           this.page === 'orders' ? row.order_number : this.page === 'inventory' ? row.sku : row.id
-        const path = {
-          orders: '/orders',
-          shipments: '/shipments',
-          refunds: '/refund-requests',
-          inventory: '/products',
-          inquiries: '/inquiries'
-        }[this.page]
-        await api.delete(`${path}/${encodeURIComponent(key)}`)
+        await resources.deleteResource(this.page, key)
         await this.loadPage(this.pageNumber)
         if (!this.rows.length && this.pageNumber > 0) await this.loadPage(this.pageNumber - 1)
       })
@@ -1950,21 +1385,21 @@ export default {
     approveRefund(id) {
       if (!window.confirm(this.t('confirmApprove'))) return
       return this.run(async () => {
-        await api.post(`/refund-requests/${id}/approve`)
+        await refunds.approveRefund(id)
         await this.loadPage(this.pageNumber)
       })
     },
     rejectRefund(id) {
       if (!window.confirm(this.t('confirmReject'))) return
       return this.run(async () => {
-        await api.post(`/refund-requests/${id}/reject`)
+        await refunds.rejectRefund(id)
         await this.loadPage(this.pageNumber)
       })
     },
     openReceive(row) {
       this.receiveRefundId = row.id
-      api
-        .get(`/refund-requests/${row.id}`)
+      refunds
+        .getRefund(row.id)
         .then(r => {
           this.receiveLines = (r.data.return_items || []).map(i => ({
             ...i,
@@ -1979,7 +1414,7 @@ export default {
     },
     confirmReceive() {
       return this.run(async () => {
-        await api.post(`/refund-requests/${this.receiveRefundId}/receive`, {
+        await refunds.receiveRefund(this.receiveRefundId, {
           items: this.receiveLines.map(l => ({
             order_item_id: l.order_item_id,
             accepted_quantity: Number(l.accepted_quantity)
@@ -1992,7 +1427,7 @@ export default {
 
     classify() {
       return this.run(async () => {
-        this.inquiryResult = (await api.post('/inquiries', this.form)).data
+        this.inquiryResult = (await submitInquiry(this.form)).data
       })
     },
     lookupCustomer() {
@@ -2001,12 +1436,8 @@ export default {
         this.customer = null
         this.orders = []
         try {
-          this.customer = (
-            await api.get(`/customers/by-email/${encodeURIComponent(this.email)}`)
-          ).data
-          this.orders = (
-            await api.get(`/customers/by-email/${encodeURIComponent(this.email)}/orders`)
-          ).data
+          this.customer = (await customers.getCustomerByEmail(this.email)).data
+          this.orders = (await customers.getCustomerOrders(this.email)).data
         } catch (e) {
           if (e.message === 'Customer not found') throw new Error(this.t('customerNotFound'))
           throw e
@@ -2016,7 +1447,7 @@ export default {
     createCustomer() {
       return this.run(async () => {
         try {
-          const saved = (await api.post('/customers', this.newCustomer)).data
+          const saved = (await customers.createCustomer(this.newCustomer)).data
           this.customer = saved
           this.email = saved.email
           this.orders = []
@@ -2031,7 +1462,7 @@ export default {
     },
     lookupProduct() {
       return this.run(async () => {
-        this.product = (await api.get(`/products/${encodeURIComponent(this.sku)}`)).data
+        this.product = (await products.getProduct(this.sku)).data
       })
     }
   }
