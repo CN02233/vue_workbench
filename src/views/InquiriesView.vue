@@ -110,7 +110,25 @@ export default {
     // EN: Same shared formatter App.vue uses, with the inquiry page's date columns.
     // 中文：复用 App.vue 同一个格式化工具，日期列与咨询页保持一致。
     cell(row, key) {
+      // EN: AI fields come from the server only; never infer or reconstruct them locally.
+      //     Missing values render as a dash so historical rows show no false numbers.
+      // 中文：AI 字段一律来自服务端，不在本地推算或伪造；
+      //     缺失值显示短横线，历史记录不会显示错误数字。
+      if (key === 'ai_category') return row.ai_category ? this.t(row.ai_category) : '—'
+      if (key === 'analysis_source') return row.analysis_source ? this.t(row.analysis_source) : '—'
+      if (key === 'confidence') return this.confidenceText(row.confidence)
+      if (key === 'needs_human_review') {
+        if (row.needs_human_review === true) return this.t('needsHumanReview')
+        if (row.needs_human_review === false) return this.t('noReviewNeeded')
+        return '—'
+      }
       return formatCell(row, key, this.t, ['created_at'])
+    },
+    // EN: 0.92 -> 92%; nullish or non-finite values become a dash instead of NaN%.
+    // 中文：0.92 显示为 92%；空值或非有限值显示短横线，避免出现 NaN%。
+    confidenceText(value) {
+      if (value === null || value === undefined || !Number.isFinite(Number(value))) return '—'
+      return `${Math.round(Number(value) * 100)}%`
     },
     onFilterInput(key, event) {
       this.$emit('update-filter', { key, value: event.target.value })

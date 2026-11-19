@@ -211,8 +211,10 @@
       :editing="editing"
       :editor="editor"
       :inquiry-categories="inquiryCategories"
+      :ai-detail="inquiryAiDetail"
       @close="closeForm"
       @save="saveManagement"
+      @feedback="setFeedback"
     />
     <ReceiveRefundModal
       v-if="showReceive"
@@ -223,7 +225,7 @@
       @receive="confirmReceive"
     />
 
-    <GlobalFeedback :error="error" />
+    <GlobalFeedback :error="error" :success="success" />
   </main>
 </template>
 
@@ -238,6 +240,7 @@ import * as shipments from './api/shipment'
 import * as refunds from './api/refund'
 import * as products from './api/product'
 import * as customers from './api/customer'
+import * as inquiries from './api/inquiry'
 import * as resources from './api/resources'
 import { formatTime as formatTimeValue } from './utils/format'
 // EN: Application shell components and the extracted Dashboard view.
@@ -330,6 +333,9 @@ export default {
     productOptions: [],
     orderOptions: [],
     orderDetail: null,
+    // EN: Read-only AI snapshot for the inquiry detail modal; always server-provided.
+    // 中文：咨询详情弹窗的只读 AI 快照，始终来自服务端。
+    inquiryAiDetail: null,
     refundDetail: null,
     linkedOrders: [],
     movements: [],
@@ -341,7 +347,8 @@ export default {
     receiveRefundId: null,
     health: false,
     busy: false,
-    error: ''
+    error: '',
+    success: ''
   }),
   watch: {
     locale(value) {
@@ -384,7 +391,17 @@ export default {
           ],
           refunds: ['id', 'order_number', 'status', 'refund_type', 'amount', 'created_at'],
           inventory: ['sku', 'name', 'stock', 'price', 'order_count'],
-          inquiries: ['id', 'customer_email', 'subject', 'category', 'created_at']
+          inquiries: [
+            'id',
+            'customer_email',
+            'subject',
+            'ai_category',
+            'category',
+            'confidence',
+            'analysis_source',
+            'needs_human_review',
+            'created_at'
+          ]
         }[this.page] || []
       )
     },
@@ -482,12 +499,14 @@ export default {
     },
     // EN: DashboardView reports loading/error state here so global state stays in one place.
     // 中文：工作台视图把加载/错误状态上报到这里，保证全局状态仍只有一份。
-    setFeedback({ busy, error } = {}) {
+    setFeedback({ busy, error, success } = {}) {
       if (busy !== undefined) this.busy = busy
       if (error !== undefined) this.error = error
+      if (success !== undefined) this.success = success
     },
     async run(fn) {
       this.error = ''
+      this.success = ''
       this.busy = true
       try {
         await fn()
@@ -560,10 +579,24 @@ export default {
       if (this.editor.items.length > 1) this.editor.items.splice(index, 1)
     },
 
+    // EN: Copy only server-provided AI fields into the detail view; no client-side inference.
+    // 中文：只把服务端下发的 AI 字段传入详情视图，不做任何客户端推算。
+    pickAiDetail(row) {
+      return {
+        ai_category: row.ai_category,
+        category: row.category,
+        confidence: row.confidence,
+        needs_human_review: row.needs_human_review,
+        suggested_reply: row.suggested_reply,
+        analysis_source: row.analysis_source
+      }
+    },
+
     beginCreate() {
       this.editing = false
       this.originalKey = ''
       this.orderDetail = null
+      this.inquiryAiDetail = null
       this.refundDetail = null
       this.linkedOrders = []
       this.movements = []
@@ -610,6 +643,7 @@ export default {
       this.showForm = true
       this.error = ''
       this.orderDetail = null
+      this.inquiryAiDetail = null
       this.refundDetail = null
       this.linkedOrders = []
       this.movements = []
@@ -660,6 +694,18 @@ export default {
           body: row.body || '',
           category: row.category
         }
+        // EN: The list row already carries the AI snapshot; refresh it from the detail endpoint.
+        //     Both sources are server-owned, so the UI never reconstructs ai_category locally.
+        // 中文：列表行已带 AI 快照，再通过详情接口刷新；两个来源都归服务端所有，
+        //     界面不会在本地重建 ai_category。
+        this.inquiryAiDetail = this.pickAiDetail(row)
+        inquiries
+          .getInquiry(row.id)
+          .then(r => {
+            if (r.data && Object.keys(r.data).length)
+              this.inquiryAiDetail = this.pickAiDetail(r.data)
+          })
+          .catch(() => {})
       } else {
         this.originalKey = row.id
         this.editor = {
@@ -822,7 +868,15 @@ export default {
               price: this.editor.price
             })
         } else if (this.page === 'inquiries') {
-          if (this.editing) await resources.updateResource(this.page, key, this.editor)
+          // EN: Send business fields only; the AI snapshot is server-owned and never submitted.
+          // 中文：只提交业务字段；AI 快照归服务端所有，绝不随请求提交。
+          if (this.editing)
+            await resources.updateResource(this.page, key, {
+              customer_email: this.editor.customer_email,
+              subject: this.editor.subject,
+              body: this.editor.body,
+              category: this.editor.category
+            })
           else
             await resources.createResource(this.page, {
               customer_email: this.editor.customer_email,
@@ -1282,6 +1336,45 @@ td {
   padding: 14px 20px;
   border-radius: 9px;
   z-index: 100;
+}
+.toast.success {
+  background: #2f7d4f;
+}
+.ai-analysis {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid #e7eaf0;
+}
+.ai-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+  font-size: 14px;
+}
+.ai-grid div {
+  display: flex;
+  flex-direction: column;
+}
+.ai-grid span {
+  color: #788397;
+  font-size: 12px;
+}
+.ai-grid strong {
+  color: #172033;
+  font-weight: 600;
+}
+.reply-block {
+  margin-top: 12px;
+}
+.reply-text {
+  background: #f7f9fc;
+  border-radius: 9px;
+  padding: 12px;
+  white-space: pre-wrap;
+  font-size: 14px;
+}
+.copy-reply {
+  margin-top: 8px;
 }
 
 .modal-backdrop {

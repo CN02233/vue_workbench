@@ -23,6 +23,7 @@ import VueRouter from 'vue-router'
 import axios from 'axios'
 import App from '@/App.vue'
 import InquiriesView from '@/views/InquiriesView.vue'
+import InquiryEditor from '@/components/management/InquiryEditor.vue'
 import { INQUIRY_CATEGORIES } from '@/utils/constants'
 
 const localVue = createLocalVue()
@@ -48,7 +49,17 @@ const ROWS = [
   }
 ]
 
-const COLUMNS = ['id', 'customer_email', 'subject', 'category', 'created_at']
+const COLUMNS = [
+  'id',
+  'customer_email',
+  'subject',
+  'ai_category',
+  'category',
+  'confidence',
+  'analysis_source',
+  'needs_human_review',
+  'created_at'
+]
 const FILTER_FIELDS = [
   { key: 'customer_email' },
   { key: 'subject' },
@@ -119,7 +130,11 @@ describe('InquiriesView standalone rendering', () => {
       '编号',
       '客户邮箱',
       '主题',
+      'AI 原始分类',
       '分类',
+      'AI 置信度',
+      '分析来源',
+      '建议人工审核',
       '创建时间',
       '操作'
     ])
@@ -314,5 +329,242 @@ describe('App.vue handles InquiriesView events', () => {
     expect(wrapper.find('tbody tr').text()).toContain('a@b.com')
     // One list request per entry into the page; the view never fetches on its own.
     expect(api.get.mock.calls.filter(call => call[0] === '/inquiries')).toHaveLength(2)
+  })
+})
+
+/* ------------------------------------------- AI analysis in the inquiry list */
+
+const AI_ROW = {
+  id: 11,
+  customer_email: 'ai@b.com',
+  subject: 'Where is my order?',
+  ai_category: 'ORDER_QUERY',
+  category: 'COMPLAINT', // EN: human already edited this. 中文：人工已修改业务分类。
+  confidence: 0.92,
+  analysis_source: 'AI',
+  needs_human_review: true,
+  suggested_reply: 'Track your order here.',
+  created_at: '2026-11-01T10:20:30'
+}
+
+const cellsOf = wrapper =>
+  wrapper
+    .findAll('tbody tr')
+    .at(0)
+    .findAll('td')
+    .wrappers.map(td => td.text())
+
+describe('InquiriesView AI analysis columns', () => {
+  it('shows the original AI category separately from the current business category', () => {
+    const wrapper = shallowMount(InquiriesView, { propsData: viewProps({ rows: [AI_ROW] }) })
+    const cells = cellsOf(wrapper)
+
+    expect(cells[3]).toBe('订单查询')
+    expect(cells[4]).toBe('投诉')
+  })
+
+  it('renders confidence as a percentage and never as NaN', () => {
+    const wrapper = shallowMount(InquiriesView, { propsData: viewProps({ rows: [AI_ROW] }) })
+
+    expect(cellsOf(wrapper)[5]).toBe('92%')
+    expect(wrapper.vm.confidenceText(0.5)).toBe('50%')
+    expect(wrapper.vm.confidenceText(null)).toBe('—')
+    expect(wrapper.vm.confidenceText(undefined)).toBe('—')
+    expect(wrapper.vm.confidenceText(NaN)).toBe('—')
+  })
+
+  it('translates AI and RULE_BASED sources and shows the review hint', () => {
+    const ai = shallowMount(InquiriesView, { propsData: viewProps({ rows: [AI_ROW] }) })
+    expect(cellsOf(ai)[6]).toBe('AI')
+    expect(cellsOf(ai)[7]).toBe('建议人工审核')
+
+    const rule = shallowMount(InquiriesView, {
+      propsData: {
+        ...viewProps(),
+        rows: [{ ...AI_ROW, analysis_source: 'RULE_BASED', needs_human_review: false }]
+      }
+    })
+    expect(cellsOf(rule)[6]).toBe('规则分析')
+    expect(cellsOf(rule)[7]).toBe('无需人工审核')
+  })
+
+  it('renders a safe placeholder for historical rows without AI fields', () => {
+    const wrapper = shallowMount(InquiriesView, { propsData: viewProps({ rows: [ROWS[0]] }) })
+    const cells = cellsOf(wrapper)
+
+    expect(cells.slice(3, 8)).toEqual(['—', '订单查询', '—', '—', '—'])
+    expect(wrapper.text()).not.toContain('NaN')
+    expect(wrapper.text()).not.toContain('undefined')
+  })
+})
+
+/* ------------------------------------------- AI analysis detail + copy reply */
+
+const AI_DETAIL = {
+  ai_category: 'REFUND',
+  category: 'REFUND',
+  confidence: 0.88,
+  analysis_source: 'AI',
+  needs_human_review: true,
+  suggested_reply: 'We will review your refund.'
+}
+
+function mountEditor(overrides = {}) {
+  return mount(InquiryEditor, {
+    propsData: {
+      locale: 'zh',
+      page: 'inquiries',
+      busy: false,
+      editing: true,
+      editor: {
+        customer_email: 'a@b.com',
+        subject: 'Refund',
+        body: 'PRIVATE_ORIGINAL_BODY',
+        category: 'REFUND'
+      },
+      inquiryCategories: INQUIRY_CATEGORIES,
+      aiDetail: AI_DETAIL,
+      ...overrides
+    }
+  })
+}
+
+describe('InquiryEditor AI analysis detail', () => {
+  it('shows the full AI snapshot with a separate suggested reply area', () => {
+    const wrapper = mountEditor()
+
+    expect(wrapper.find('.ai-analysis').exists()).toBe(true)
+    expect(wrapper.find('.ai-grid').text()).toContain('AI 原始分类')
+    expect(wrapper.find('.ai-grid').text()).toContain('退款申请')
+    expect(wrapper.find('.ai-grid').text()).toContain('88%')
+    expect(wrapper.find('.ai-grid').text()).toContain('AI')
+    expect(wrapper.find('.ai-grid').text()).toContain('建议人工审核')
+    expect(wrapper.find('.reply-text').text()).toBe('We will review your refund.')
+    expect(wrapper.find('.reply-text').text()).not.toContain('PRIVATE_ORIGINAL_BODY')
+  })
+
+  it('copies the full suggested reply and reports success', async () => {
+    const writeText = jest.fn(() => Promise.resolve())
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true
+    })
+    const wrapper = mountEditor()
+
+    await wrapper.find('.copy-reply').trigger('click')
+    await flush()
+    await flush()
+
+    expect(writeText).toHaveBeenCalledWith('We will review your refund.')
+    expect(wrapper.emitted().feedback[0][0]).toEqual({ success: '回复已复制' })
+  })
+
+  it('reports an explicit failure when the clipboard rejects the copy', async () => {
+    const writeText = jest.fn(() => Promise.reject(new Error('denied')))
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true
+    })
+    const wrapper = mountEditor()
+
+    await wrapper.find('.copy-reply').trigger('click')
+    await flush()
+    await flush()
+
+    expect(wrapper.emitted().feedback[0][0]).toEqual({ error: '复制失败，请手动选择并复制文本' })
+  })
+
+  it('disables copying and shows a placeholder when no reply was suggested', () => {
+    const wrapper = mountEditor({ aiDetail: { ...AI_DETAIL, suggested_reply: null } })
+
+    expect(wrapper.find('.copy-reply').attributes('disabled')).toBe('disabled')
+    expect(wrapper.find('.reply-text').text()).toBe('暂无 AI 建议回复')
+  })
+
+  it('shows the no-AI-data state for historical records', () => {
+    const wrapper = mountEditor({
+      aiDetail: {
+        ai_category: null,
+        category: 'OTHER',
+        confidence: null,
+        analysis_source: null,
+        needs_human_review: null,
+        suggested_reply: null
+      }
+    })
+
+    expect(wrapper.text()).toContain('暂无 AI 分析数据')
+    expect(wrapper.find('.ai-grid').exists()).toBe(false)
+    expect(wrapper.find('.copy-reply').exists()).toBe(false)
+  })
+})
+
+/* ------------------------------------------- App.vue wiring */
+
+describe('App.vue keeps the AI snapshot through manual edits', () => {
+  it('loads the detail from the server and never submits AI fields on category change', async () => {
+    const detail = {
+      id: 1,
+      customer_email: 'a@b.com',
+      subject: 'Where is my order?',
+      category: 'ORDER_QUERY',
+      ai_category: 'ORDER_QUERY',
+      confidence: 0.92,
+      analysis_source: 'AI',
+      needs_human_review: true,
+      suggested_reply: 'Track your order.'
+    }
+    api.get.mockImplementation(url => {
+      if (url === '/health') return Promise.resolve({ data: { status: 'UP' } })
+      if (url === '/inquiries')
+        return Promise.resolve({
+          data: {
+            content: [detail],
+            page: { number: 0, totalPages: 1, totalElements: 1, size: 10 }
+          }
+        })
+      if (url === '/inquiries/1') return Promise.resolve({ data: detail })
+      if (url === '/customers' || url === '/products' || url === '/orders')
+        return Promise.resolve({ data: { content: [] } })
+      return Promise.resolve({ data: {} })
+    })
+
+    const { wrapper, view } = await mountAt('/inquiries')
+    view.vm.$emit('edit', detail)
+    await flush()
+    await flush()
+
+    expect(api.get).toHaveBeenCalledWith('/inquiries/1')
+    expect(wrapper.vm.inquiryAiDetail.ai_category).toBe('ORDER_QUERY')
+    const editor = wrapper.findComponent(InquiryEditor)
+    expect(editor.find('.reply-text').text()).toBe('Track your order.')
+
+    await editor.find('select').setValue('COMPLAINT')
+    await wrapper.vm.saveManagement()
+    await flush()
+
+    expect(api.put).toHaveBeenCalledWith('/inquiries/1', {
+      customer_email: 'a@b.com',
+      subject: 'Where is my order?',
+      body: '',
+      category: 'COMPLAINT'
+    })
+    expect(wrapper.vm.inquiryAiDetail.ai_category).toBe('ORDER_QUERY')
+    expect(wrapper.vm.inquiryAiDetail.confidence).toBe(0.92)
+  })
+
+  it('shows the success toast reported by the copy action', async () => {
+    const { wrapper } = await mountAt('/inquiries')
+    const writeText = jest.fn(() => Promise.resolve())
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true
+    })
+
+    wrapper.vm.setFeedback({ success: '回复已复制' })
+    await flush()
+
+    expect(wrapper.vm.success).toBe('回复已复制')
+    expect(wrapper.find('.toast.success').text()).toBe('回复已复制')
   })
 })
