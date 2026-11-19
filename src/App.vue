@@ -40,7 +40,33 @@
       @delete="removeRow"
     />
 
-    <section v-if="page !== 'dashboard' && page !== 'inquiries'" class="card management">
+    <!-- EN: Inventory has its own view; stock edit modal and all business logic stay in App.vue. -->
+    <!-- 中文：库存页使用独立视图；库存编辑弹窗与全部业务逻辑仍留在 App.vue。 -->
+    <InventoryView
+      v-if="page === 'inventory'"
+      :locale="locale"
+      :rows="filteredRows"
+      :columns="columns"
+      :filters="filters"
+      :filter-fields="filterFields"
+      :page-number="pageNumber"
+      :page-size="pageSize"
+      :total-pages="totalPages"
+      :total-elements="totalElements"
+      @update-filter="setFilterValue"
+      @search="searchPage"
+      @reset="resetFilters"
+      @page="loadPage"
+      @page-size="setPageSize"
+      @create="beginCreate"
+      @edit="beginEdit"
+      @delete="removeRow"
+    />
+
+    <section
+      v-if="page !== 'dashboard' && page !== 'inquiries' && page !== 'inventory'"
+      class="card management"
+    >
       <div class="management-heading">
         <h2>{{ t(page) }}</h2>
         <button @click="beginCreate">{{ t('add_new') }}</button>
@@ -671,6 +697,7 @@ import AppNavigation from './components/common/AppNavigation.vue'
 import GlobalFeedback from './components/common/GlobalFeedback.vue'
 import DashboardView from './views/DashboardView.vue'
 import InquiriesView from './views/InquiriesView.vue'
+import InventoryView from './views/InventoryView.vue'
 import {
   ORDER_STATUSES,
   INQUIRY_CATEGORIES,
@@ -681,7 +708,14 @@ import {
 } from './utils/constants'
 
 export default {
-  components: { AppHeader, AppNavigation, GlobalFeedback, DashboardView, InquiriesView },
+  components: {
+    AppHeader,
+    AppNavigation,
+    GlobalFeedback,
+    DashboardView,
+    InquiriesView,
+    InventoryView
+  },
   data: () => ({
     locale: localStorage.getItem('order-ai-locale') || 'zh',
     page: 'dashboard',
