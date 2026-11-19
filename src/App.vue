@@ -110,13 +110,42 @@
       @delete="removeRow"
     />
 
+    <!-- EN: Refunds has its own view; create/edit/receive modals and all workflows stay in App.vue. -->
+    <!-- 中文：退款页使用独立视图；创建/编辑/验收弹窗与全部工作流仍留在 App.vue。 -->
+    <!-- EN: approve/reject App methods take an id; the view emits the full row for a consistent interface. -->
+    <!-- 中文：App 的审批/拒绝方法接收 id；视图统一发出整行对象以保持接口一致。 -->
+    <RefundsView
+      v-if="page === 'refunds'"
+      :locale="locale"
+      :rows="filteredRows"
+      :columns="columns"
+      :filters="filters"
+      :filter-fields="filterFields"
+      :page-number="pageNumber"
+      :page-size="pageSize"
+      :total-pages="totalPages"
+      :total-elements="totalElements"
+      @update-filter="setFilterValue"
+      @search="searchPage"
+      @reset="resetFilters"
+      @page="loadPage"
+      @page-size="setPageSize"
+      @create="beginCreate"
+      @edit="beginEdit"
+      @approve="row => approveRefund(row.id)"
+      @reject="row => rejectRefund(row.id)"
+      @receive="openReceive"
+      @delete="removeRow"
+    />
+
     <section
       v-if="
         page !== 'dashboard' &&
         page !== 'inquiries' &&
         page !== 'inventory' &&
         page !== 'orders' &&
-        page !== 'shipments'
+        page !== 'shipments' &&
+        page !== 'refunds'
       "
       class="card management"
     >
@@ -753,6 +782,7 @@ import InquiriesView from './views/InquiriesView.vue'
 import InventoryView from './views/InventoryView.vue'
 import OrdersView from './views/OrdersView.vue'
 import ShipmentsView from './views/ShipmentsView.vue'
+import RefundsView from './views/RefundsView.vue'
 import {
   ORDER_STATUSES,
   INQUIRY_CATEGORIES,
@@ -771,7 +801,8 @@ export default {
     InquiriesView,
     InventoryView,
     OrdersView,
-    ShipmentsView
+    ShipmentsView,
+    RefundsView
   },
   data: () => ({
     locale: localStorage.getItem('order-ai-locale') || 'zh',
